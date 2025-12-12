@@ -1,3 +1,10 @@
+"""Cross-validated joint SLDS training on combined trial types.
+
+Each fold concatenates self and counterpart trials, fits a single SLDS, and
+then exports latent states for both groups so we can evaluate consistency
+across behaviors under matched training data.
+"""
+
 import os
 import time
 import ipdb
@@ -56,6 +63,8 @@ def main(
     subspace_type,
     alpha):
 
+    """Fit/evaluate joint SLDS models with K-fold CV for a single session."""
+
     assert len(trial_filters) == 2
     assert data_format is None
 
@@ -111,7 +120,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation
+        ## K-fold cross validation for both self and counterpart cohorts
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         splits_self = list(kf.split(np.arange(n_trials_self)))
@@ -157,14 +166,14 @@ def main(
                 X_input_train = None
                 X_input_test  = None
 
-            ## Sweep through various numbers of states and iterations as well as random states
+            ## Sweep through candidate state/iteration counts within the fold
             for i_continuous_states, n_continuous_states in enumerate(ns_states):
                 for i_discrete_states, n_discrete_states in enumerate(ns_discrete_states):
                     for i_iters, n_iters in enumerate(ns_iters):
 
                         time_start = time.time()
 
-                        ## Format save path
+                        ## Format save path so each result encodes seed/fold/hyper-params
                         if model_type in ['LDS']:
 
                             ## Omit discrete states for LDS

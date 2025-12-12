@@ -1,3 +1,10 @@
+"""Full cross-speed SLDS training loop with K-fold cross-validation.
+
+Pairs each behavioral speed with its counterpart, fits SLDS models on the
+training folds, and evaluates on held-out trials to capture generalization
+across both trial splits and speed conditions.
+"""
+
 import os
 import time
 import ipdb
@@ -57,6 +64,8 @@ def main(
     subspace_type,
     alpha):
 
+    """Fit/evaluate SLDS models for a single configuration tuple."""
+
     trial_filter_ctpt = utils_processing.trial_filter_counterparts[trial_filter]
 
     ## Load data
@@ -114,7 +123,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation
+        ## K-fold cross validation across self vs counterpart trials
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         splits_self = list(kf.split(np.arange(n_trials_self)))
@@ -162,14 +171,14 @@ def main(
             trial_lengths_train = trial_lengths_train_self
             trial_lengths_test  = trial_lengths_test_ctpt
 
-            ## Sweep through various numbers of states and iterations as well as random states
+            ## Sweep through candidate state/iteration counts for the fold
             for i_continuous_states, n_continuous_states in enumerate(ns_states):
                 for i_discrete_states, n_discrete_states in enumerate(ns_discrete_states):
                     for i_iters, n_iters in enumerate(ns_iters):
 
                         time_start = time.time()
 
-                        ## Format save path
+                        ## Format save path that encodes hyper-parameters and fold index
                         if model_type in ['LDS']:
 
                             ## Omit discrete states for LDS

@@ -1,8 +1,17 @@
+"""Central configuration shared across all SLDS analysis scripts.
+
+This module centralizes directory paths, session metadata, trial filters,
+and model sweep parameters so that different training scripts can import a
+single data source. Adjust values here to change experiment settings without 
+touching the execution code.
+"""
+
 import os
 import numpy as np
 
 from sys import platform
 
+## Resolve the root data directory for each supported OS
 if platform == 'linux' or platform == 'linux2':
     lab_dir = '/home/ynffsy/Desktop/andersen_lab'
 elif platform == 'darwin':
@@ -13,13 +22,15 @@ else:
     raise ValueError('Unknown OS')
 
 
+## Global flags shared by every training job
 overwrite_results = False
 
+## Canonical locations for neural data, intermediate outputs, and figures
 data_dir    = os.path.join(lab_dir, 'data/cg/processed/')
 results_dir = os.path.join(lab_dir, 'results/dynamics_paper')
 vis_dir     = os.path.join(lab_dir, 'visualizations/dynamics_paper')
 
-
+## Per-session metadata describing available units, filters, and timing anchors
 session_data_dict = {
     'sub-N1_ses-20190412_tf_CenterStart' : {
         'unit_filters' : ['MC'],
@@ -263,8 +274,7 @@ session_data_dict = {
     # },
 }
 
-
-
+## List of session identifiers to include in the current sweep
 session_data_names = [
     # 'sub-N1_ses-20190412_tf_CenterStart',
     'sub-N1_ses-20190517_tf_CenterStart',
@@ -301,6 +311,7 @@ session_data_names = [
 
 ]
 
+## Which neural populations to keep when loading data
 # unit_filter = 
 unit_filters = [
     'MC',
@@ -311,6 +322,7 @@ unit_filters = [
     # 'PPC-SPL',
 ]
 
+## Optional secondary population used as exogenous inputs
 input_unit_filters = [
     None,
     # 'PPC',
@@ -318,6 +330,7 @@ input_unit_filters = [
     # 'PPC-SPL',
 ]
 
+## Temporal preprocessing window configuration applied before fitting models
 # window_config = 'gt_-0.2_fct_0.5_s0.001_gaussian_0.03_10'
 # window_config = 'gt_0.0_fct_0.0_s0.01_gaussian_0.1_10'
 window_config = 'gt_0.139_fct_0.0_s0.01_gaussian_0.1_10'
@@ -345,13 +358,16 @@ window_config = 'gt_0.139_fct_0.0_s0.01_gaussian_0.1_10'
 # window_config = 'gt_0.3_fct_0.0_s0.02_gaussian_0.1_10'
 # window_config = 'gt_0.3_fct_0.0_s0.02_gaussian_0.03_10'
 
+## Sampling parameters shared by decoding/visualization code paths
 time_step     = 0.01 ## in seconds
 time_offset   = 0 ## index offset between MC and PPC
 
+## Possible tensor reshaping strategies and label conventions
 data_formats  = [None]  ## None, 'concat', 'fill0', 'truncate_end', 'truncate_front' or 'resample'
 label_formats = ['pe'] ## 'cartesian', 'univec', 'pe'
 standardize   = False
 
+## Each top-level script iterates over these behavioral conditions
 trial_filters = [
     'fast',
     'slow',
@@ -366,6 +382,7 @@ trial_filters = [
     # None,
 ]
 
+## Select which training/evaluation paradigms to run
 train_test_options = [ # 'same_speed' or 'cross_speed'
     'same_speed', 
     # 'cross_speed',
@@ -373,6 +390,7 @@ train_test_options = [ # 'same_speed' or 'cross_speed'
 ] 
 
 
+## Shared sweep definitions for randomness, CV depth, and model sizes
 # random_states = [0, 9, 42, 66, 99]
 # random_states = [99]
 random_states = [42]
@@ -399,6 +417,7 @@ ns_iters      = [25]
 ## window_sizes is used for the baseline case of inference
 window_sizes  = [2, 3, 4, 5, 6, 7, 8, 9, 10]
 
+## Model family definitions used by the sweeps
 model_types        = ['rSLDS'] # 'LDS' or 'rSLDS'
 dynamics_classes   = ['diagonal_gaussian']
 emission_classes   = ['gaussian']

@@ -8,6 +8,7 @@ import autograd.numpy.random as npr
 
 
 class SLDS:
+    """Thin wrapper around the `ssm` package with convenience utilities."""
 
     def __init__(
         self, 
@@ -66,6 +67,7 @@ class SLDS:
         if self.emission_class in ['poisson', 'poisson_orthog']:
             self.train_emissions = [np.array(emission).astype(int) for emission in self.train_emissions]
 
+        # Instantiate the requested `ssm` object by selecting the proper topology
         if model_type == 'SLDS':
             self.model = ssm.SLDS(
                 N=n_neurons, 
@@ -148,6 +150,7 @@ class SLDS:
             # times varies by trial; # neurons stays constant.
         """
 
+        # Support the same initialization strategies used throughout the scripts
         if self.init_type == 'ARHMM':
             self.train_elbos, self.train_posterior = self.model.fit(
                 self.train_emissions, 

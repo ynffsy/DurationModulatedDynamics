@@ -1,3 +1,10 @@
+"""Train a joint SLDS on concatenated self/ctpt trials without CV.
+
+This script merges two behavioral conditions, fits a single SLDS model, and
+then splits the resulting latent trajectories back out per condition for
+downstream analyses.
+"""
+
 import os
 import time
 import ipdb
@@ -53,6 +60,8 @@ def main(
     subspace_type,
     alpha):
 
+    """Fit a single SLDS to the combined fast/slow data for one session."""
+
     assert len(trial_filters) == 2
 
     ## Load data
@@ -90,6 +99,7 @@ def main(
     else:
         n_input_neurons = 0
 
+    # Merge self and counterpart trials into one list before fitting a single model
     firing_rates_combined = firing_rates_self_simple + firing_rates_ctpt_simple
     if n_input_neurons:
         input_firing_rates_combined = input_firing_rates_self_simple + input_firing_rates_ctpt_simple
@@ -123,7 +133,7 @@ def main(
 
                     time_start = time.time()
                     
-                    ## Format save path
+                    ## Format save path for this seeded sweep configuration
                     if model_type in ['LDS', 'pLDS']:
 
                         ## Omit discrete states for LDS
@@ -184,6 +194,7 @@ def main(
                     test_discrete_states_self = neural_SLDS.test_discrete_states[:n_trials_self]
                     test_discrete_states_ctpt = neural_SLDS.test_discrete_states[n_trials_self:n_trials_self + n_trials_ctpt]
 
+                    # Persist two result files so downstream steps can read per-condition latents
                     with open(res_save_path_self, 'wb') as f:
                         pickle.dump({
                             'train_elbos'                        : neural_SLDS.train_elbos,

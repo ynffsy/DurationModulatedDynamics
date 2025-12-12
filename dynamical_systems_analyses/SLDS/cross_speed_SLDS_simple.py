@@ -1,3 +1,10 @@
+"""Run cross-speed SLDS fits without cross-validation for quick sweeps.
+
+This script pairs fast/slow trials for a single session, fits an SLDS on the
+"self" trials, and evaluates on the counterpart trials to quantify how well
+latents transfer across movement speeds.
+"""
+
 import os
 import time
 import ipdb
@@ -44,6 +51,9 @@ def main(
     input_unit_filter,
     trial_filter):
 
+    """Train/test a single session+trial-filter pairing."""
+
+    # Counterpart maps "fast" <-> "slow" so we can evaluate cross-condition generalization
     trial_filter_ctpt = utils_processing.trial_filter_counterparts[trial_filter]
 
     ## Load data
@@ -95,13 +105,13 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## Sweep through various numbers of states and iterations as well as random states
+        # Sweep across state-count / iteration combinations for this random seed
         for i_states, n_continuous_states in enumerate(ns_states):
             for i_iters, n_iters in enumerate(ns_iters):
 
                 time_start = time.time()
 
-                ## Format save path
+                ## Format save path for this hyper-parameter tuple
                 model_save_name = '_'.join(map(str, [x for x in [
                     'r' + str(random_state),
                     's' + str(n_continuous_states),
@@ -116,7 +126,7 @@ def main(
 
                 X_input_train = None
 
-                ## Use SLDS to reduce the dimensionality of firing rate data                    
+                ## Use SLDS to learn latent trajectories from self trials                     
                 neural_SLDS = SLDS(
                     firing_rates_self_simple,
                     X_input_train,
