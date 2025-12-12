@@ -1,3 +1,5 @@
+"""Helpers to compute the Dynamical State Update Process (DSUP) ratios."""
+
 import ipdb
 import numpy as np
 import multiprocessing as mp
@@ -111,6 +113,7 @@ def dsup_ratio_parallel(x_obs, x_latent, x_latent_cov, trial_lengths, model_para
     dynamics_cov = np.array(model_params.dynamics.cov)
     obs_cov_inv  = np.linalg.inv(obs_cov)
 
+    # Precompute start/end indices so each worker can slice a single trial
     trial_start_end_indices = []
     trial_length_sum = 0
 

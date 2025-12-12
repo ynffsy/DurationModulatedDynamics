@@ -1,3 +1,5 @@
+"""Convenience routines for forecasting and reconstructing emissions/latents."""
+
 import ipdb
 import numpy as np
 

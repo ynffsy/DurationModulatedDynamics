@@ -1,3 +1,5 @@
+"""Quick reporter for neuron counts/trial counts per session configuration."""
+
 import os
 import ipdb
 import numpy as np
@@ -20,6 +22,7 @@ window_config = 'gt_-0.2_fct_0.5_s0.001_gaussian_0.03_10'
 
 def generate_session_statistics(
     session_data_name):
+    """Print subject/task summary plus neuron/trial counts for a session."""
 
     session_data_name_list = session_data_name.split('_')
     subject_id = session_data_name_list[0][-2:]
@@ -68,6 +71,7 @@ def generate_session_statistics(
 
 if __name__ == '__main__':
 
+    # Iterate through every configured session so we can paste the summary table
     for session_data_name in session_data_dict.keys():
         generate_session_statistics(
             session_data_name)

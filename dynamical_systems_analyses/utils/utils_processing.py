@@ -1,3 +1,5 @@
+"""Shared data wrangling helpers for loading, filtering, and aligning trials."""
+
 import os
 import ipdb
 import pickle

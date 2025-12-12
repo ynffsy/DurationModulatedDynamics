@@ -1,3 +1,5 @@
+"""Utility to map deselected trial indices to per-run IDs for QC reports."""
+
 import os
 import numpy as np
 import pandas as pd
@@ -14,6 +16,7 @@ data_dir = config.data_dir
 def convert_deselected_trial_ids(
     session_data_name,
     deselected_trial_ids):
+    """Group deselected trial indices by experimental run for easier logging."""
 
     ## Load trials data
     data_path_prefix = os.path.join(data_dir, session_data_name)
@@ -52,6 +55,7 @@ if __name__ == '__main__':
         'sub-N2_ses-20250509_CenterStartInterleave': [14, 32, 34, 82, 102, 110, 159, 165, 220, 224, 244, 314], # fast 1.5 path efficency threshold + positive slope within 0.35 distance
     }
 
+    # Loop through every session we care about and summarize the run-level IDs
     for session_data_name, deselected_trial_ids in deselected_trial_ids_dict.items():
         print(session_data_name)
         convert_deselected_trial_ids(

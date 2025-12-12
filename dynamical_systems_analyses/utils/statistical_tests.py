@@ -1,9 +1,12 @@
+"""Ad-hoc statistical comparisons backing the dynamics paper figures."""
+
 import numpy as np
 import pandas as pd
 from scipy.stats import wilcoxon, mannwhitneyu, sem, t
 import ipdb
 
 
+# Source spreadsheet produced from manual annotations / plotting notebooks
 df = pd.read_csv('/Users/ynffsy/Downloads/dynamics_paper_numerical_support_2.csv')
 
 df_N1 = df[df['Subject'] == 'N1']

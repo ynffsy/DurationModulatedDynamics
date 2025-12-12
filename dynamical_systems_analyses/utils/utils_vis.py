@@ -1,3 +1,5 @@
+"""Plotting utilities for latent trajectories, vector fields, and paper figures."""
+
 import ipdb
 import numpy as np
 import seaborn as sns
