@@ -1,3 +1,5 @@
+"""Lightweight wrapper around `ssm` models used throughout the pipeline."""
+
 import ipdb
 
 import numpy as np
@@ -52,6 +54,7 @@ class SLDS:
         self.emission_class      = emission_class
         self.emission_optimizer  = 'lbfgs'
 
+        # Decide whether we restrict emissions to a single shared subspace
         if self.subspace_type == 'single' or self.subspace_type is None:
             self.single_subspace = True
         elif self.subspace_type == 'multi':

@@ -1,3 +1,5 @@
+"""Compute discrete-state entropy/transition penalties from SLDS fits."""
+
 import os
 import time
 import ipdb
@@ -15,7 +17,9 @@ from vis_config import session_target_radii
 
 
 
-## Read parameters from config
+# -----------------------------------------------------------------------------
+# Global configuration shared across all entropy jobs
+# -----------------------------------------------------------------------------
 overwrite_results  = config.overwrite_results
 data_dir           = config.data_dir
 results_dir        = config.results_dir
@@ -60,7 +64,7 @@ def main(
 
     session_results_dir = os.path.join(results_dir, session_data_name)
 
-    ## Initialize save name
+    ## Initialize save name for this unique combination of hyper-parameters
     res_save_name = '_'.join(map(str, [x for x in [
         'entropy',
         unit_filter,
@@ -87,7 +91,7 @@ def main(
         print('Results already exist for file: ', res_save_path)
         return
     
-    ## Load data
+    ## Load firing rates/cursor data for the requested session
     data_loader = utils_processing.DataLoaderDuo(
         data_dir,
         results_dir,
@@ -125,7 +129,7 @@ def main(
         alpha=alpha,
         check_existence=True)
 
-    ## Initialize results
+    ## Initialize results containers
     entropy_per_time_fast = np.zeros((2, len(random_states), n_folds, len(ns_states), len(ns_discrete_states), len(ns_iters)))
     entropy_per_time_slow = np.zeros((2, len(random_states), n_folds, len(ns_states), len(ns_discrete_states), len(ns_iters)))
     entropy_per_trial_fast = np.zeros((2, len(random_states), n_folds, len(ns_states), len(ns_discrete_states), len(ns_iters)))
@@ -142,7 +146,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation
+        ## K-fold cross validation so each random state sees the same folds
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         # for i_fold, (trial_indices_train, trial_indices_test) in enumerate(kf.split(np.arange(n_trials_slow))):

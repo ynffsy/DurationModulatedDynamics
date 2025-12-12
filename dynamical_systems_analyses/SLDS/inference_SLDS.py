@@ -1,3 +1,5 @@
+"""Run SLDS-based inference benchmarks (dynamics, emissions, forecasts)."""
+
 import os
 import time
 import ipdb
@@ -16,7 +18,9 @@ from vis_config import session_target_radii
 
 
 
-## Read parameters from config
+# -----------------------------------------------------------------------------
+# Shared configuration for exhaustive inference sweeps
+# -----------------------------------------------------------------------------
 overwrite_results  = config.overwrite_results
 data_dir           = config.data_dir
 results_dir        = config.results_dir
@@ -94,7 +98,7 @@ def main(
         print('Results already exist for file: ', res_save_path)
         return
 
-    ## Load data
+    ## Load spike trains + cursor data for the requested preprocessing
     data_loader = utils_processing.DataLoaderDuo(
         data_dir,
         results_dir,
@@ -133,6 +137,7 @@ def main(
         check_existence=True)
 
     ## Initialize results
+    ## (train/test axis first, followed by random_state -> fold -> hyper-params)
     ## Cannot save inference results for training data because results from each fold would overwrite each other
     dynamics_inference_fast_test = np.empty((len(random_states), len(ns_states), len(ns_discrete_states), len(ns_iters), n_trials_fast), dtype=object)
     dynamics_inference_slow_test = np.empty((len(random_states), len(ns_states), len(ns_discrete_states), len(ns_iters), n_trials_slow), dtype=object)
@@ -159,7 +164,7 @@ def main(
     r2_forecast_fast   = np.zeros((2, len(random_states), n_folds, len(ns_states), len(ns_discrete_states), len(ns_iters)))
     r2_forecast_slow   = np.zeros((2, len(random_states), n_folds, len(ns_states), len(ns_discrete_states), len(ns_iters)))
 
-    ## Inference metrics per time point and trial (Order is preserved). R2 here is computed per sample
+    ## Inference metrics per time point and trial (order preserved; R2 computed per sample)
     trial_length_fast_max = np.max(trial_lengths_fast)
     trial_length_slow_max = np.max(trial_lengths_slow)
 
@@ -176,18 +181,19 @@ def main(
     ## Read data and decode cursor states
     for i_rs, random_state in enumerate(random_states):
 
-        ## Multi-fold cross validation
+        ## Multi-fold cross validation (repeatable due to fixed rng seed)
         np.random.seed(random_state)
 
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation
+        ## K-fold cross validation that mirrors the decoding scripts
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         splits_fast = list(kf.split(np.arange(n_trials_fast)))
         splits_slow = list(kf.split(np.arange(n_trials_slow)))
 
+        # Iterate over paired (slow, fast) folds so the comparisons stay aligned
         for i_fold, (
             (trial_indices_slow_train, trial_indices_slow_test), 
             (trial_indices_fast_train, trial_indices_fast_test)) in enumerate(zip(splits_slow, splits_fast)):
@@ -223,6 +229,7 @@ def main(
             X_slow_test_concat  = np.concatenate(X_slow_test,  axis=0)
 
             ## Concatenate trials while removing first time point
+            ## (needed so one-step-ahead forecasts align with available history)
             X_fast_train_no_first_concat = np.concatenate([X_fast_train[i][1:, :] for i in range(len(X_fast_train))], axis=0)
             X_fast_test_no_first_concat  = np.concatenate([X_fast_test[i][1:, :] for i in range(len(X_fast_test))], axis=0)
             X_slow_train_no_first_concat = np.concatenate([X_slow_train[i][1:, :] for i in range(len(X_slow_train))], axis=0)
@@ -240,7 +247,7 @@ def main(
 
                         print('n_continuous_states: ', n_continuous_states, ' n_discrete_states: ', n_discrete_states, ' n_iters: ', n_iters)
 
-                        ## Read SLDS processed data
+                        ## Read SLDS processed data (latent/posterior caches per fold/state)
                         if model_type in ['LDS']:
 
                             ## Omit discrete states for LDS
@@ -293,6 +300,7 @@ def main(
                         emissions_fast = model_fast.emissions
                         emissions_slow = model_slow.emissions
 
+                        # Latent trajectories for each train trial (kept separate for reshaping later)
                         X_fast_latent_fast_train = continuous_states_fast_train ## Fast latent space fast train data
                         X_slow_latent_slow_train = continuous_states_slow_train ## Slow latent space slow train data
                         

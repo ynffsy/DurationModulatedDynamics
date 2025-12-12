@@ -1,3 +1,5 @@
+"""Compute DSUP ratios from previously fit SLDS models across folds and states."""
+
 import os
 import time
 import ipdb
@@ -15,7 +17,9 @@ from vis_config import session_target_radii
 
 
 
-## Read parameters from config
+# -----------------------------------------------------------------------------
+# Experiment-wide configuration that drives the exhaustive sweep below
+# -----------------------------------------------------------------------------
 overwrite_results  = config.overwrite_results
 data_dir           = config.data_dir
 results_dir        = config.results_dir
@@ -59,7 +63,7 @@ def main(
 
     session_results_dir = os.path.join(results_dir, session_data_name)
 
-    ## Initialize save name
+    ## Initialize save name so each hyper-parameter tuple has a deterministic cache
     res_save_name = '_'.join(map(str, [x for x in [
         'dsupr',
         unit_filter,
@@ -86,7 +90,7 @@ def main(
         print('Results already exist for file: ', res_save_path)
         return
 
-    ## Load data
+    ## Load spike trains/cursor data for the requested session
     data_loader = utils_processing.DataLoaderDuo(
         data_dir,
         results_dir,
@@ -124,6 +128,7 @@ def main(
         alpha=alpha,
         check_existence=True)
 
+    ## Each entry stores (train, test) DSUP ratios per random_state/fold/hyper-param
     dsupr_fast = np.zeros((2, len(random_states), n_folds, len(ns_states), len(ns_discrete_states), len(ns_iters)))
     dsupr_slow = np.zeros((2, len(random_states), n_folds, len(ns_states), len(ns_discrete_states), len(ns_iters)))
 
@@ -147,7 +152,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation
+        ## K-fold cross validation to keep folds matched between speed conditions
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         splits_fast = list(kf.split(np.arange(n_trials_fast)))

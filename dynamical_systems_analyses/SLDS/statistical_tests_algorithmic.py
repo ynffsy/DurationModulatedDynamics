@@ -1,3 +1,5 @@
+"""Plotting and statistical utilities for dynamics paper figure generation."""
+
 import os
 import numpy as np
 import pandas as pd

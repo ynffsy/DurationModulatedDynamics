@@ -1,3 +1,5 @@
+"""Baseline decoders for cursor trajectories using PCA + linear regression sweeps."""
+
 import os
 import time
 import ipdb
@@ -15,7 +17,9 @@ from vis_config import session_target_radii
 
 
 
-## Read parameters from config
+# -----------------------------------------------------------------------------
+# Global configuration (shared across every session/unit configuration)
+# -----------------------------------------------------------------------------
 overwrite_results  = config.overwrite_results
 data_dir           = config.data_dir
 results_dir        = config.results_dir
@@ -53,7 +57,7 @@ def main(
 
     session_results_dir = os.path.join(results_dir, session_data_name)
 
-    ## Initialize save name
+    ## Initialize save name (uniquely identifies every hyper-parameter sweep)
     res_save_name = '_'.join(map(str, [x for x in [
         'decoding',
         unit_filter,
@@ -74,7 +78,7 @@ def main(
         print('Results already exist for file: ', res_save_path)
         return
     
-    ## Load data
+    ## Load data for the requested session + unit filter pair
     data_loader = utils_processing.DataLoaderDuo(
         data_dir,
         results_dir,
@@ -101,6 +105,7 @@ def main(
     print('n_trials_fast: ', n_trials_fast, 'n_trials_slow: ', n_trials_slow)
 
     # data_loader.load_cursor_data()
+    ## Align cursor trajectories to neural firing rate windows before decoding
     data_loader.align_cursor_to_firing_rates()
     cursor_states_fast, cursor_states_slow, _, _ = data_loader.reformat_cursor_data(label_format)
 
@@ -126,7 +131,7 @@ def main(
     decoded_results_slow_test = np.empty((len(random_states), n_trials_slow, len(ns_states)), dtype=object)
     decoded_results_fast_test = np.empty((len(random_states), n_trials_fast, len(ns_states)), dtype=object)
 
-    ## Read SLDS results and decode cursor states
+    ## Loop over deterministic seeds so we can average variability out later
     for i_rs, random_state in enumerate(random_states):
 
         ## Multi-fold cross validation
@@ -135,7 +140,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation
+        ## K-fold cross validation (identical folds for fast/slow to keep pairing)
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         # for i_fold, (trial_indices_train, trial_indices_test) in enumerate(kf.split(np.arange(n_trials_slow))):
@@ -146,7 +151,7 @@ def main(
         cumulative_trial_lengths_slow = 0
         cumulative_trial_lengths_fast = 0
 
-        # Iterate through both splits using zip
+        # Iterate through both splits using zip to ensure matching folds per speed
         for i_fold, (
             (trial_indices_slow_train, trial_indices_slow_test), 
             (trial_indices_fast_train, trial_indices_fast_test)) in enumerate(zip(splits_slow, splits_fast)):
@@ -191,12 +196,12 @@ def main(
             fold_total_trial_lengths_slow = np.sum(trial_lengths_slow[trial_indices_slow_test])
             fold_total_trial_lengths_fast = np.sum(trial_lengths_fast[trial_indices_fast_test])
 
-            ## For SLDS, sweep through various numbers of states and iterations
+            ## Sweep across PCA latent dimensionalities to match SLDS state counts
             for i_continuous_states, n_continuous_states in enumerate(ns_states):
 
                 print('n_continuous_states: ', n_continuous_states)
 
-                ## Same-speed decoding
+                ## Same-speed decoding keeps training/testing within the same kinematic regime
                 if train_test_option == 'same_speed':
                     
                     ## SLDS train slow test slow
@@ -247,7 +252,7 @@ def main(
                         decoded_results_fast_test[i_rs, trial_index, i_continuous_states] = test_pred[total_length:total_length + trial_length]
                         total_length += trial_length
 
-                ## Cross-speed decoding
+                ## Cross-speed decoding forces generalization across movement speeds
                 else:
 
                     ## SLDS train slow test fast                      
@@ -305,7 +310,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
 
-    ## Save results
+    ## Save the aggregated decoding metrics and per-trial reconstructions
     np.savez(
         res_save_path,
         decoding_errors_slow=decoding_errors_slow,

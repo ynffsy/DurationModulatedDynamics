@@ -1,3 +1,5 @@
+"""Decode cursor trajectories from SLDS latent states across model configs."""
+
 import os
 import time
 import ipdb
@@ -15,7 +17,9 @@ from vis_config import session_target_radii
 
 
 
-## Read parameters from config
+# -----------------------------------------------------------------------------
+# Global configuration for exhaustive decoding sweeps
+# -----------------------------------------------------------------------------
 overwrite_results  = config.overwrite_results
 data_dir           = config.data_dir
 results_dir        = config.results_dir
@@ -61,7 +65,7 @@ def main(
 
     session_results_dir = os.path.join(results_dir, session_data_name)
 
-    ## Initialize save name
+    ## Initialize save name so each hyper-parameter tuple maps to one results file
     res_save_name = '_'.join(map(str, [x for x in [
         'decoding',
         unit_filter,
@@ -89,7 +93,7 @@ def main(
         print('Results already exist for file: ', res_save_path)
         return
     
-    ## Load data
+    ## Load neural data for both movement speeds and requested preprocessing
     data_loader = utils_processing.DataLoaderDuo(
         data_dir,
         results_dir,
@@ -140,7 +144,7 @@ def main(
         metric = 'rel_mag'
 
     ## Initialize results
-    ## Cannot save decoding results for training data because results from each fold would overwrite each other
+    ## (Train/test axis=0, random_states axis=1, folds axis=2, hyper-params afterwards)
 
     ## Decoding errors averaged over time points and trials
     decoding_errors_fast = np.zeros((2, len(random_states), n_folds, len(ns_states), len(ns_discrete_states), len(ns_iters)))
@@ -170,7 +174,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation
+        ## K-fold cross validation (paired splits for slow/fast data)
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         splits_slow = list(kf.split(np.arange(n_trials_slow)))
@@ -204,14 +208,14 @@ def main(
             y_slow_test_concat  = np.concatenate(y_slow_test,  axis=0)
 
 
-            ## For SLDS, sweep through various numbers of states and iterations
+            ## For SLDS, sweep through various numbers of states and EM iterations
             for i_continuous_states, n_continuous_states in enumerate(ns_states):
                 for i_discrete_states, n_discrete_states in enumerate(ns_discrete_states):
                     for i_iters, n_iters in enumerate(ns_iters):
 
                         print('n_continuous_states: ', n_continuous_states, ' n_discrete_states: ', n_discrete_states, ' n_iters: ', n_iters)
 
-                        ## Read SLDS processed data
+                        ## Read SLDS processed data (latent states already inferred)
                         if model_type in ['LDS']:
 
                             ## Omit discrete states for LDS
@@ -439,7 +443,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
 
-    ## Save results
+    ## Save results (metrics, decoded trajectories, and trial length metadata)
     np.savez(
         res_save_path,
         decoding_errors_slow=decoding_errors_slow,

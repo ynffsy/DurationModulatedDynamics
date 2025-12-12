@@ -1,3 +1,5 @@
+"""Statistical analyses and helper routines used in the dynamics paper figures."""
+
 import os
 import ipdb
 import pickle

@@ -1,3 +1,5 @@
+"""Baseline inference by forecasting neural activity with rolling averages."""
+
 import os
 import time
 import ipdb
@@ -14,7 +16,9 @@ import utils.utils_inference as utils_inference
 
 
 
-## Read parameters from config
+# -----------------------------------------------------------------------------
+# Shared configuration for the lightweight baseline inference benchmark
+# -----------------------------------------------------------------------------
 overwrite_results  = config.overwrite_results
 data_dir           = config.data_dir
 results_dir        = config.results_dir
@@ -38,7 +42,7 @@ def main(
 
     session_results_dir = os.path.join(results_dir, session_data_name)
 
-    ## Initialize save name
+    ## Initialize save name so each data format/version ends up in its own npz
     res_save_name = '_'.join(map(str, [x for x in [
         'inference_baseline',
         unit_filter,
@@ -49,7 +53,7 @@ def main(
         print('Results already exist for session: ', session_data_name)
         return
 
-    ## Load data
+    ## Load spike trains (optionally resampled/padded)
     data_loader = utils_processing.DataLoaderDuo(
         data_dir,
         results_dir,
@@ -68,7 +72,7 @@ def main(
      trial_lengths_slow,             trial_lengths_fast,
      times_new_slow,                 times_new_fast) = data_loader.reformat_firing_rate_data(data_format)
 
-    ## Initialize results
+    ## Initialize results (train/test axis first to avoid confusion later)
     # GT_slow            = None
     # GT_fast            = None
     # baseline_slow_test = None
@@ -106,7 +110,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation
+        ## K-fold cross validation reuses the same folds for slow/fast activity
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         splits_slow = list(kf.split(np.arange(n_trials_slow)))
@@ -152,7 +156,7 @@ def main(
                 X_forecast_slow_test_baseline = utils_inference.forecast_inference_baseline(X_slow_test_concat, X_slow_test_trial_lengths, window_size)
                 X_forecast_fast_test_baseline = utils_inference.forecast_inference_baseline(X_fast_test_concat, X_fast_test_trial_lengths, window_size)
 
-                ## Save inference and forecast results
+                ## Save inference and forecast results for later inspection
                 forecast_slow_train[i_rs, i_fold, i_window] = X_forecast_slow_train_baseline
                 forecast_slow_test[i_rs, i_fold, i_window]  = X_forecast_slow_test_baseline
                 forecast_fast_train[i_rs, i_fold, i_window] = X_forecast_fast_train_baseline
@@ -169,7 +173,7 @@ def main(
                 forecast_slow_test_baseline_r2  = utils_decoding.r2(X_forecast_slow_test_baseline,  X_slow_test_concat)
                 forecast_fast_test_baseline_r2  = utils_decoding.r2(X_forecast_fast_test_baseline,  X_fast_test_concat)
 
-                ## Save results
+                ## Save results (train index 0, test index 1)
                 rmse_forecast_baseline_slow[0, i_rs, i_fold, i_window] = forecast_slow_train_baseline_rmse
                 rmse_forecast_baseline_slow[1, i_rs, i_fold, i_window] = forecast_slow_test_baseline_rmse
 

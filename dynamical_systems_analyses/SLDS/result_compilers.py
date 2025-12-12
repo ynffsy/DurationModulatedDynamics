@@ -1,3 +1,5 @@
+"""Aggregate decoding/DSUP results and derived trajectories for downstream plots."""
+
 import os
 import ipdb
 import pickle
