@@ -1,3 +1,4 @@
+"""Shared plotting style settings and color palettes for all SLDS figures."""
 
 import seaborn as sns
 import matplotlib as mpl
@@ -5,9 +6,8 @@ import matplotlib.colors as mcolors
 import dynamical_systems_analyses.SLDS.config as config
 
 
-# print(mpl.rcParams.keys())  # Print current rcParams for debugging
-# Set the default style for matplotlib
-# Nature font & sizing
+# print(mpl.rcParams.keys())  # Uncomment to inspect available rcParams
+# Set a Nature-style default look for all figures generated in this repo
 mpl.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["Arial"],   # Helvetica on macOS
@@ -28,10 +28,12 @@ mpl.rcParams.update({
     # "errorbar.capthick" : 0.5,   # caps
     # "errorbar.capsize" : 1
 })
-mm = 1/25.4
+mm = 1/25.4  # convenient conversion from millimeters to inches for figsize
 
 
-## Read parameters from config
+# -----------------------------------------------------------------------------
+# Read parameters from config (mirrors analysis scripts for consistency)
+# -----------------------------------------------------------------------------
 data_dir           = config.data_dir
 results_dir        = config.results_dir
 vis_dir            = config.vis_dir
@@ -67,6 +69,9 @@ n_ns_iters             = len(ns_iters)
 
 
 
+# -----------------------------------------------------------------------------
+# Reusable transparency/size defaults for scatter/line elements
+# -----------------------------------------------------------------------------
 alpha_point = 0.8
 size_point  = 100
 alpha_line_thin  = 0.3
@@ -79,6 +84,9 @@ label_fontsize = 18
 
 
 
+# -----------------------------------------------------------------------------
+# Color themes grouped by task and condition (ballistic/sustained/near/far)
+# -----------------------------------------------------------------------------
 theme_coral_light  = '#FFCCCC'
 theme_coral_mid    = '#F79C9C'
 theme_coral_dark   = '#E86B6B'
@@ -129,6 +137,7 @@ color_palettes = {
     },
 }
 
+# Discrete state color stacks (indexing into hidden state IDs per task)
 discrete_state_colors = {
     'CenterStart': {
         'fast': [theme_blue_dark, theme_blue_light, theme_blue_mid],
@@ -144,6 +153,7 @@ discrete_state_colors = {
     },
 }
 
+# Continuous colormaps used for heatmaps/gradients per condition
 color_maps = {
     'CenterStart': {
         'fast': mcolors.LinearSegmentedColormap.from_list('CO fast', [blues[2], blues[0]]),

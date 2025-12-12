@@ -1,3 +1,5 @@
+"""Entry point with session presets to regenerate paper figures."""
+
 import vis_paper
 import statistics_paper
 import dynamical_systems_analyses.SLDS.config as config
@@ -6,6 +8,7 @@ import dynamical_systems_analyses.SLDS.config as config
 
 if __name__ == '__main__':
 
+    # Session definitions used to drive batched figure generation
     session_info = {
         'N1_CenterStart': {
             'subject': 'N1',

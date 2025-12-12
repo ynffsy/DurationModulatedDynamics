@@ -1,3 +1,5 @@
+"""Figure helpers for decoding, inference, entropy, and DSUP visualizations."""
+
 import os
 import ipdb
 import itertools
@@ -20,7 +22,9 @@ from vis_config import *
 
 
 
-## Read parameters from config
+# -----------------------------------------------------------------------------
+# Shared configuration and hyper-parameter grids reused across plotting calls
+# -----------------------------------------------------------------------------
 data_dir           = config.data_dir
 results_dir        = config.results_dir
 vis_dir            = config.vis_dir
@@ -56,6 +60,9 @@ n_ns_iters             = len(ns_iters)
 
 
 
+# -----------------------------------------------------------------------------
+# Default marker/line styling for paper figures
+# -----------------------------------------------------------------------------
 alpha_point = 0.8
 size_point  = 100
 alpha_line_thin  = 0.3
@@ -68,6 +75,9 @@ label_fontsize = 18
 
 
 
+# -----------------------------------------------------------------------------
+# Color palettes for conditions and discrete states
+# -----------------------------------------------------------------------------
 theme_coral_light = (255/255, 204/255, 204/255)
 theme_coral_mid   = (247/255, 156/255, 156/255)
 theme_coral_dark  = (232/255, 107/255, 107/255)
@@ -240,6 +250,8 @@ def plot_decoding_results_avg_session(
     alpha,
     train_or_test='test',
     form='heatmap'):
+
+    """Aggregate decoding errors across sessions/random states, then plot either heatmaps or scatter summaries."""
 
     print('Plotting decoding results...')
 
@@ -642,6 +654,8 @@ def plot_per_time_decoding_results_avg_session(
     truncate_percentile=10,
     visual_delay_time=0):
 
+    """Plot decoding error trajectories over time for same-speed and cross-speed models across sessions."""
+
     print('Plotting decoding results...')
 
     rSLDS_same_speed_decoding_name = '_'.join(map(str, [x for x in [
@@ -969,6 +983,8 @@ def plot_inference_results_avg_session(
     inference_type='forecast',
     form='heatmap'):
 
+    """Summarize inference R² across model sizes for fast/slow trials and plot heatmaps or waterfall views."""
+
     print('Plotting inference results...')
 
     task_name = session_data_names[0].split('_')[-1]
@@ -1230,6 +1246,8 @@ def plot_per_time_inference_results_avg_session(
     inference_type='forecast',
     truncate_percentile=10,
     visual_delay_time=0):
+
+    """Plot per-time inference performance for fast/slow trials, plus difference traces and significance markers."""
 
     print('Plotting inference results...')
 
@@ -1757,6 +1775,8 @@ def plot_dsupr_results_avg_session(
     train_or_test='test',
     form='lines'):
 
+    """Aggregate DSUP ratios across sessions and visualize them as lines, surfaces, or heatmaps."""
+
     print('Plotting DSUP Ratio results...')
 
     task_name = session_data_names[0].split('_')[-1]
@@ -2015,6 +2035,8 @@ def plot_per_time_dsupr_results_avg_session(
     alpha,
     truncate_percentile=10,
     visual_delay_time=0):
+
+    """Plot per-time DSUP trajectories for same- vs cross-speed models and save 3D line plots."""
 
     print('Plotting dsupr results...')
 
@@ -2336,6 +2358,8 @@ def plot_elbos_avg_session(
     train_or_test='test',
     form='heatmap'):
 
+    """Compare ELBOs across latent dimensionalities for fast/slow models with multiple plot styles."""
+
     print('Plotting ELBOs...')
 
     xticks = np.arange(len(ns_states))
@@ -2619,6 +2643,8 @@ def plot_entropy_results_avg_session(
     alpha,
     train_or_test='test',
     form='heatmap'):
+
+    """Plot entropy differences (trial minus time) for fast/slow models and save compact visual summaries."""
 
     print('Plotting Entropy Difference results...')
 

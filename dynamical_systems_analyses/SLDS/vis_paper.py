@@ -1,3 +1,5 @@
+"""High-level plotting routines for behavioral and SLDS results in the paper."""
+
 import os
 import ipdb
 import pickle
@@ -24,7 +26,7 @@ from vis_config import *
 
 
 
-## Read parameters from config
+## Read parameters from config (keeps visualizations aligned with analysis configs)
 data_dir           = config.data_dir
 results_dir        = config.results_dir
 vis_dir            = config.vis_dir
@@ -66,6 +68,8 @@ def plot_behavioral_distances_to_target(
     window_config,
     data_format,
     trial_filters):
+
+    """Plot distance-to-target traces for every trial across sessions and trial filters, then save a PDF."""
 
     task_name = session_data_names[0].split('_')[-1]
 
@@ -173,6 +177,8 @@ def plot_behavioral_target_acquisition_times(
     window_config,
     data_format,
     trial_filters):
+
+    """Summarize target acquisition times per session/condition, compute simple stats, and emit a swarm plot PDF."""
 
     task_name = session_data_names[0].split('_')[-1]
 
@@ -356,6 +362,8 @@ def plot_cursor_trajectories(
     alpha,
     show_target_positions=True,
     discrete_state_overlay=False):
+
+    """Plot 2D cursor trajectories for a session, optionally overlaying discrete-state colouring and target positions."""
 
     task = session_data_name.split('_')[-1]
 
@@ -582,6 +590,8 @@ def plot_cursor_trajectories_simple(
     show_example_trajectories=False,
     show_target_positions=True):
 
+    """Plot mean or example cursor paths for fast vs slow trials, with optional target overlays, and save a PDF."""
+
     line_styles = ['--', '-']
 
     ## Plot cursor trajectories
@@ -791,6 +801,8 @@ def plot_discrete_states_over_time(
     subspace_type,
     alpha,
     visual_delay_time=0):
+
+    """Stack discrete-state occupancies over time for fast/slow trials across sessions, sharing an aligned time axis."""
 
     task_name = session_data_names[0].split('_')[-1]
     color_palette = discrete_state_colors[task_name]
@@ -1057,6 +1069,8 @@ def plot_3D_dynamical_latent_trajectories_integrated(
     view_name='view1',
     visual_delay_time=0,
     supplement_format=False):
+
+    """Visualize 3D latent trajectories for fast/slow conditions with options for colouring, flow fields, and custom axes."""
 
     task = session_data_name.split('_')[-1]
 
@@ -1940,6 +1954,8 @@ def plot_dynamical_latent_trajectories_per_dimension(
     significance_alpha: float = 0.05,
     correction_method: str = "fdr_bh",
     save_significance_data=False):
+
+    """Plot latent trajectories per dimension/target with significance bars and optional saving of significance counts."""
 
     data_by_trial_filter_all = {
         trial_filters[0]: {'continuous_states_by_target' : [[] for _ in range(8)]},
@@ -2910,6 +2926,8 @@ def plot_time_crossnobis_RDM_matrix_single_session(
     pval=False,
     signed_square_root=True,
     time_marker=None):
+
+    """Render a single-session time-time crossnobis RDM with optional CI or p-value modes and save to disk."""
 
     fig, axs = plt.subplots(1, 2, figsize=(16, 6))
 
