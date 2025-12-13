@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "DurationModulatedDynamics"
+version = "0.1.0"
+description = "BCI dynamics analysis"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "ssm @ git+https://github.com/lindermanlab/ssm.git",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["experiments*", "metrics*", "scripts*", "utils*", "visualizations*"]
+exclude = ["data*", "notebooks*", "docs*", "tests*"]

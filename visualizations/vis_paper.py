@@ -19,10 +19,10 @@ from matplotlib.lines import Line2D
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
-import dynamical_systems_analyses.utils.utils_processing as utils_processing
-import dynamical_systems_analyses.utils.utils_vis as utils_vis
-import dynamical_systems_analyses.SLDS.config as config
-from vis_config import *
+import utils.utils_processing as utils_processing
+import utils.utils_vis as utils_vis
+import scripts.config as config
+from visualizations.vis_config import *
 
 
 
@@ -4130,6 +4130,8 @@ def plot_dynamical_latent_trajectories_per_dimension_ring(
 
 
 if __name__ == '__main__':
+
+    pass
 
     # for (
     #     unit_filter,

@@ -9,7 +9,7 @@ import numpy as np
 
 from sklearn.model_selection import KFold
 
-import config as config
+import scripts.config as config
 import utils.utils_processing as utils_processing
 import utils.utils_decoding as utils_decoding
 import utils.utils_inference as utils_inference

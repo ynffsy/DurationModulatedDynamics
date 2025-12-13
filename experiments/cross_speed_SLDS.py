@@ -17,9 +17,9 @@ import pandas as pd
 
 from sklearn.model_selection import KFold
 
-import dynamical_systems_analyses.SLDS.config as config
-import dynamical_systems_analyses.utils.utils_processing as utils_processing
-from SLDS import SLDS
+import scripts.config as config
+import utils.utils_processing as utils_processing
+from experiments.SLDS import SLDS
 
         
 

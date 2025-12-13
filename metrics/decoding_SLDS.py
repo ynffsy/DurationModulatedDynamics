@@ -10,10 +10,10 @@ import pandas as pd
 
 from sklearn.model_selection import KFold
 
-import dynamical_systems_analyses.SLDS.config as config
-import dynamical_systems_analyses.utils.utils_processing as utils_processing
-import dynamical_systems_analyses.utils.utils_decoding as utils_decoding
-from vis_config import session_target_radii
+import scripts.config as config
+import utils.utils_processing as utils_processing
+import utils.utils_decoding as utils_decoding
+from visualizations.vis_config import session_target_radii
 
 
 

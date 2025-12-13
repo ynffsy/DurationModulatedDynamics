@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 
-import dynamical_systems_analyses.SLDS.config as config
+import scripts.config as config
 
 
 

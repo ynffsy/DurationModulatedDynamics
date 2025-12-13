@@ -10,10 +10,10 @@ import numpy as np
 
 from sklearn.model_selection import KFold
 
-import dynamical_systems_analyses.SLDS.config as config
-import dynamical_systems_analyses.utils.utils_processing as utils_processing
-import dynamical_systems_analyses.utils.utils_dsup as utils_dsup
-from vis_config import session_target_radii
+import scripts.config as config
+import utils.utils_processing as utils_processing
+import utils.utils_dsup as utils_dsup
+from visualizations.vis_config import session_target_radii
 
 
 

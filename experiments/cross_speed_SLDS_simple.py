@@ -14,9 +14,9 @@ import datetime
 import numpy as np
 import pandas as pd
 
-import config as config
+import scripts.config as config
 import utils.utils_processing as utils_processing
-from SLDS import SLDS
+from experiments.SLDS import SLDS
 
         
 

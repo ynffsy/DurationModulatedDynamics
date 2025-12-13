@@ -16,9 +16,9 @@ from statsmodels.stats.multitest import fdrcorrection
 import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-import dynamical_systems_analyses.utils.utils_vis as utils_vis
-import dynamical_systems_analyses.SLDS.config as config
-from vis_config import *
+import utils.utils_vis as utils_vis
+import scripts.config as config
+from visualizations.vis_config import *
 
 
 

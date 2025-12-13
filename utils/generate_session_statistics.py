@@ -5,8 +5,8 @@ import ipdb
 import numpy as np
 import pandas as pd
 
-import dynamical_systems_analyses.SLDS.config as config
-import dynamical_systems_analyses.utils.utils_processing as utils_processing
+import scripts.config as config
+import utils.utils_processing as utils_processing
 
 
 

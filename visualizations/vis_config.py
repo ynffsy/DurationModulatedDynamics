@@ -3,7 +3,7 @@
 import seaborn as sns
 import matplotlib as mpl
 import matplotlib.colors as mcolors
-import dynamical_systems_analyses.SLDS.config as config
+import scripts.config as config
 
 
 # print(mpl.rcParams.keys())  # Uncomment to inspect available rcParams

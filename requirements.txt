@@ -1,0 +1,13 @@
+numpy
+matplotlib
+seaborn
+scipy
+scikit-learn
+ipdb
+tqdm
+rsatoolbox
+statannotations
+prettytable
+pandas
+xarray
+cython
