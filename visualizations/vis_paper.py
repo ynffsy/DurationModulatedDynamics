@@ -1,5 +1,5 @@
 import os
-import ipdb
+
 import pickle
 import itertools
 from collections import defaultdict
@@ -19,10 +19,10 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
 import matplotlib.collections as mcoll
-import dynamical_systems_analyses.utils.utils_processing as utils_processing
-import dynamical_systems_analyses.utils.utils_vis as utils_vis
-import config_SfN2024 as config
-from vis_config import *
+import utils.utils_processing as utils_processing
+import utils.utils_vis as utils_vis
+import scripts.config as config
+from visualizations.vis_config import *
 
 
 

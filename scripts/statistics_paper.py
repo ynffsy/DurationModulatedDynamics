@@ -1,5 +1,5 @@
 import os
-import ipdb
+
 import pickle
 import itertools
 from collections import defaultdict
@@ -20,11 +20,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA, FactorAnalysis
 from sklearn.cross_decomposition import PLSRegression
 
-import dynamical_systems_analyses.utils.utils_processing as utils_processing
-import dynamical_systems_analyses.utils.utils_decoding as utils_decoding
-import dynamical_systems_analyses.utils.utils_vis as utils_vis
-import config_SfN2024 as config
-from vis_config import *
+import utils.utils_processing as utils_processing
+import utils.utils_decoding as utils_decoding
+import utils.utils_vis as utils_vis
+import scripts.config as config
+from visualizations.vis_config import *
 
 
 
@@ -179,8 +179,6 @@ def neural_speed_statistics(
         baseline_trial = np.concatenate(baseline_trials_all)
         peak_trial     = np.concatenate(peak_trials_all)
         return_trial   = np.concatenate(return_trials_all)
-
-        ipdb.set_trace()
 
         # ─── Descriptive means ────────────────────────────────────────────────
         print(f'Baseline mean: {baseline_trial.mean():.3f}, '
@@ -2086,8 +2084,8 @@ def lds_vs_rslds_goodness_of_fit(
     runs forecast inference, and computes R² per condition per session.
     Produces a grouped bar chart showing R² vs number of discrete states.
     """
-    import dynamical_systems_analyses.utils.utils_inference as utils_inference
-    import dynamical_systems_analyses.utils.utils_decoding as utils_decoding
+    import utils.utils_inference as utils_inference
+    import utils.utils_decoding as utils_decoding
 
     if inference_types is None:
         inference_types = ['forecast']

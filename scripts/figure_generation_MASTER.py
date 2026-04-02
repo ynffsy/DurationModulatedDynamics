@@ -1,10 +1,6 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-import vis_paper
-import statistics_paper
-import config_SfN2024 as config
+import visualizations.vis_paper as vis_paper
+import scripts.statistics_paper as statistics_paper
+import scripts.config as config
 
 
 

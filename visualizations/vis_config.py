@@ -2,7 +2,7 @@
 import seaborn as sns
 import matplotlib as mpl
 import matplotlib.colors as mcolors
-import config_SfN2024 as config
+import scripts.config as config
 
 
 # print(mpl.rcParams.keys())  # Print current rcParams for debugging

@@ -1,5 +1,5 @@
 import os
-import ipdb
+
 import itertools
 
 import numpy as np
@@ -14,9 +14,9 @@ from statsmodels.stats.multitest import fdrcorrection
 import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-import dynamical_systems_analyses.utils.utils_vis as utils_vis
-import config_SfN2024 as config
-from vis_config import *
+import utils.utils_vis as utils_vis
+import scripts.config as config
+from visualizations.vis_config import *
 
 
 
@@ -1018,8 +1018,6 @@ def plot_inference_results_avg_session(
         # inference_baseline = np.load(os.path.join(session_results_dir, inference_baseline_name + '.npz'))
         # r2_forecast_baseline_slow = inference_baseline['r2_forecast_baseline_slow']
         # r2_forecast_baseline_fast = inference_baseline['r2_forecast_baseline_fast']
-        ipdb.set_trace()
-
         ## Take the last n_iters, then add to all sessions
         rSLDS_r2_forecast_slow = rSLDS_r2_forecast_slow[..., -1]
         rSLDS_r2_forecast_fast = rSLDS_r2_forecast_fast[..., -1]

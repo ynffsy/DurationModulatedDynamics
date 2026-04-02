@@ -1,15 +1,15 @@
 import os
 import time
-import ipdb
+
 import pickle
 import itertools
 
 import numpy as np
 
-import config_SfN2024 as config
-import dynamical_systems_analyses.utils.utils_processing as utils_processing
-from SLDS import SLDS
-from vis_config import session_target_radii
+import scripts.config as config
+import utils.utils_processing as utils_processing
+from experiments.SLDS import SLDS
+from visualizations.vis_config import session_target_radii
 
         
 

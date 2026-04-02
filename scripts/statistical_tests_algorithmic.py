@@ -1,11 +1,4 @@
-import sys
 import os
-
-# Add project root and SLDS directory to path
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-_project_root = os.path.abspath(os.path.join(_this_dir, '..', '..'))
-sys.path.insert(0, _this_dir)
-sys.path.insert(0, _project_root)
 
 import numpy as np
 import pandas as pd
@@ -18,14 +11,14 @@ from statannotations.Annotator import Annotator
 from scipy.stats import wilcoxon, mannwhitneyu, sem, t
 from prettytable import PrettyTable
 
-import dynamical_systems_analyses.utils.utils_vis as utils_vis
+import utils.utils_vis as utils_vis
+import scripts.config as config
 
-from vis_config import *
+from visualizations.vis_config import *
 
 
 
-vis_dir = '/Users/ynffsy/Documents/andersen_lab_local/visualizations/SfN2024'
-# vis_dir = '/home/ynffsy/Desktop/andersen_lab/visualizations/SfN2024'
+vis_dir = config.vis_dir
 
 N1_sessions = [
     'sub-N1_ses-20190412_tf_CenterStart',

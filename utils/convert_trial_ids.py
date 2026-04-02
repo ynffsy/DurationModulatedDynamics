@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 
-import dynamical_systems_analyses.SLDS.config_SfN2024 as config
+import scripts.config as config
 
 
 

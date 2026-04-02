@@ -9,26 +9,44 @@ touching the execution code.
 import os
 import numpy as np
 
-from sys import platform
 
-## Resolve the root data directory for each supported OS
-if platform == 'linux' or platform == 'linux2':
-    lab_dir = '/home/ynffsy/Desktop/andersen_lab'
-elif platform == 'darwin':
-    lab_dir = '/Users/ynffsy/Documents/andersen_lab_local'
-elif platform == 'win32':
-    lab_dir = 'X:\\andersen_lab_files'
-else:
-    raise ValueError('Unknown OS')
+## ── Root directory ──────────────────────────────────────────────────
+## Set the environment variable DMD_BASE_DIR to point to the directory
+## that contains the data/, results/, and visualizations/ sub-folders.
+##
+##   export DMD_BASE_DIR=/path/to/your/base/directory
+##
+## Alternatively, create a file called .env in the repository root with:
+##   DMD_BASE_DIR=/path/to/your/base/directory
+## ────────────────────────────────────────────────────────────────────
+_base_dir = os.environ.get('DMD_BASE_DIR')
+if _base_dir is None:
+    # Try loading from a .env file at the repo root
+    _env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+    if os.path.isfile(_env_path):
+        with open(_env_path) as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _key, _val = _line.split('=', 1)
+                    if _key.strip() == 'DMD_BASE_DIR':
+                        _base_dir = _val.strip()
+                        break
+if _base_dir is None:
+    raise RuntimeError(
+        'DMD_BASE_DIR is not set. Either:\n'
+        '  1. export DMD_BASE_DIR=/path/to/base/dir   (in your shell), or\n'
+        '  2. create a .env file in the repo root with DMD_BASE_DIR=/path/to/base/dir'
+    )
 
 
 ## Global flags shared by every training job
 overwrite_results = False
 
 ## Canonical locations for neural data, intermediate outputs, and figures
-data_dir    = os.path.join(lab_dir, 'data/cg/processed/')
-results_dir = os.path.join(lab_dir, 'results/dynamics_paper')
-vis_dir     = os.path.join(lab_dir, 'visualizations/dynamics_paper')
+data_dir    = os.path.join(_base_dir, 'data', 'cg', 'processed')
+results_dir = os.path.join(_base_dir, 'results', 'dynamics_paper')
+vis_dir     = os.path.join(_base_dir, 'visualizations', 'dynamics_paper')
 
 ## Per-session metadata describing available units, filters, and timing anchors
 session_data_dict = {

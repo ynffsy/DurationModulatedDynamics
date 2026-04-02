@@ -1,10 +1,15 @@
+import os
 import numpy as np
 import pandas as pd
 from scipy.stats import wilcoxon, mannwhitneyu, sem, t
-import ipdb
+
+import scripts.config as config
 
 
-df = pd.read_csv('/Users/ynffsy/Downloads/dynamics_paper_numerical_support_2.csv')
+## The numerical support CSV should be placed in the results directory.
+## Adjust the filename below if yours differs.
+_csv_path = os.path.join(config.results_dir, 'dynamics_paper_numerical_support_2.csv')
+df = pd.read_csv(_csv_path)
 
 df_N1 = df[df['Subject'] == 'N1']
 df_N2 = df[df['Subject'] == 'N2']
