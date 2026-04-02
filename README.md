@@ -19,16 +19,20 @@ python -m venv .venv
 source .venv/bin/activate        # macOS / Linux
 # .venv\Scripts\activate         # Windows
 
-# 3. Install Cython first (required to build ssm)
-pip install cython numpy
+# 3. Install build dependencies (required to compile ssm)
+pip install cython numpy setuptools
 
-# 4. Install the package and all dependencies
+# 4. Install ssm (must be done separately -- its setup.py imports numpy
+#    at build time, so it needs --no-build-isolation)
+pip install --no-build-isolation git+https://github.com/lindermanlab/ssm.git
+
+# 5. Install the package and remaining dependencies
 pip install -e .
 ```
 
-> **Note on `ssm`:** The [Linderman Lab SSM package](https://github.com/lindermanlab/ssm) is installed
-> automatically from its GitHub repository. It requires Cython and a C compiler. On macOS, the Xcode
-> Command Line Tools provide one (`xcode-select --install`). On Linux, `gcc` is typically pre-installed.
+> **Note on `ssm`:** The [Linderman Lab SSM package](https://github.com/lindermanlab/ssm) requires
+> Cython and a C compiler. On macOS, the Xcode Command Line Tools provide one
+> (`xcode-select --install`). On Linux, `gcc` is typically pre-installed.
 
 ## Data setup
 

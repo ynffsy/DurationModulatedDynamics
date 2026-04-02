@@ -30,7 +30,6 @@ from visualizations.vis_config import *
 data_dir           = config.data_dir
 results_dir        = config.results_dir
 vis_dir            = config.vis_dir
-session_data_dict  = config.session_data_dict
 session_data_names = config.session_data_names
 
 unit_filters       = config.unit_filters
@@ -4742,8 +4741,6 @@ def plot_percent_neuron_discrepancy(
         task_name_ = session_data_name.split('_')[-1]
         assert task_name_ == task_name, f"All session names must have the same task suffix, got {task_name_} vs {task_name}."
 
-        # peak_onset_time = config.session_data_dict[session_data_name]['peak_onset_time']['all']
-        # peak_time = config.session_data_dict[session_data_name]['peak_time']['all']
 
         # if unit_filter == 'MC-LAT':
         #     peak_onset_time = peak_onset_time[0]

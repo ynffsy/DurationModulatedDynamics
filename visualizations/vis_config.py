@@ -35,7 +35,6 @@ mm = 1/25.4
 data_dir           = config.data_dir
 results_dir        = config.results_dir
 vis_dir            = config.vis_dir
-session_data_dict  = config.session_data_dict
 session_data_names = config.session_data_names
 
 unit_filters       = config.unit_filters

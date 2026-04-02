@@ -23,7 +23,10 @@ dependencies = [
     "cython",
     "statsmodels",
     "autograd",
-    "ssm @ git+https://github.com/lindermanlab/ssm.git",
+    # ssm must be installed separately before `pip install -e .`
+    # because its setup.py imports numpy at build time.
+    # See README for instructions.
+    # "ssm @ git+https://github.com/lindermanlab/ssm.git",
 ]
 
 [tool.setuptools.packages.find]
