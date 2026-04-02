@@ -1,6 +1,12 @@
-"""Plotting and statistical utilities for dynamics paper figure generation."""
-
+import sys
 import os
+
+# Add project root and SLDS directory to path
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+_project_root = os.path.abspath(os.path.join(_this_dir, '..', '..'))
+sys.path.insert(0, _this_dir)
+sys.path.insert(0, _project_root)
+
 import numpy as np
 import pandas as pd
 import pickle as pkl
@@ -13,14 +19,13 @@ from scipy.stats import wilcoxon, mannwhitneyu, sem, t
 from prettytable import PrettyTable
 
 import dynamical_systems_analyses.utils.utils_vis as utils_vis
-import ipdb
 
 from vis_config import *
 
 
 
-vis_dir = '/Users/ynffsy/Documents/andersen_lab_local/visualizations/dynamics_paper'
-# vis_dir = '/home/ynffsy/Desktop/andersen_lab/visualizations/dynamics_paper'
+vis_dir = '/Users/ynffsy/Documents/andersen_lab_local/visualizations/SfN2024'
+# vis_dir = '/home/ynffsy/Desktop/andersen_lab/visualizations/SfN2024'
 
 N1_sessions = [
     'sub-N1_ses-20190412_tf_CenterStart',
@@ -64,20 +69,9 @@ def construct_df(
 
         for unit_filter in unit_filters:
             
-            ## Old format
-            # save_name = '_'.join(map(str, [x for x in [
-            #     'crossnobis_RDM_superdiagonal',
-            #     unit_filter,
-            #     window_config,
-            #     data_format,
-            #     trial_filters] if x is not None]))
-
-            # save_name += '_superdiagonal1'
-
-            ## New format
             save_name = '_'.join(map(str, [x for x in [
                 session,
-                'crossnobis_RDM_superdiagonal_split',
+                'neural_speed_split',
                 unit_filter,
                 window_config] if x is not None]))
 
@@ -341,8 +335,8 @@ def plot_stats(
     
     sns.violinplot(
         ax=ax1,
-        data=df_CenterStart, 
-        x='group', 
+        data=df_CenterStart,
+        x='group',
         y=feature,
         cut=0, # If you don't want the violin "tails" to extend beyond min/max data
         inner='quartile',
@@ -352,6 +346,8 @@ def plot_stats(
         linewidth=0.25,
         saturation=1,
         alpha=0.8,
+        density_norm='width',
+        bw=0.3,
     )
 
     # Remove the violinplot edges
@@ -368,8 +364,8 @@ def plot_stats(
 
     sns.violinplot(
         ax=ax2,
-        data=df_CenterStartInterleave, 
-        x='group', 
+        data=df_CenterStartInterleave,
+        x='group',
         y=feature,
         cut=0, # If you don't want the violin "tails" to extend beyond min/max data
         inner='quartile',
@@ -379,6 +375,8 @@ def plot_stats(
         linewidth=0.25,
         saturation=1,
         alpha=0.8,
+        density_norm='width',
+        bw=0.3,
     )
 
     # Remove the violinplot edges
@@ -395,8 +393,8 @@ def plot_stats(
 
     sns.violinplot(
         ax=ax3,
-        data=df_RadialGrid, 
-        x='group', 
+        data=df_RadialGrid,
+        x='group',
         y=feature,
         cut=0, # If you don't want the violin "tails" to extend beyond min/max data
         inner='quartile',
@@ -406,6 +404,8 @@ def plot_stats(
         linewidth=0.25,
         saturation=1,
         alpha=0.8,
+        # scale='width',
+        # bw=0.3,
     )
 
     # Remove the violinplot edges
@@ -476,37 +476,79 @@ def plot_stats(
     ax3.spines['left'].set_visible(False)  # Hide the left spine
 
     if formersci_notation:
-        # ax1.yaxis.set_major_formatter(ticker.FuncFormatter(utils_vis.sci_notation_fmt))
-
         sf = ticker.ScalarFormatter(useMathText=True)
-        sf.set_powerlimits((3, 3))
+        sf.set_powerlimits((4, 4))
         ax1.yaxis.set_major_formatter(sf)
-        ax1.ticklabel_format(axis="y", style="sci", scilimits=(3, 3))
+        ax1.ticklabel_format(axis="y", style="sci", scilimits=(4, 4))
+        # Shift the ×10⁴ label left so it doesn't overlap significance brackets
+        ax1.yaxis.get_offset_text().set_x(-0.15)
 
     if pairs_to_test is not None and annotate_stats:
 
-        # Create an Annotator
-        annotator = Annotator(
-            ax1,
-            pairs=pairs_to_test,
-            data=df,
-            x='group',
-            y=feature,
-            hue='trial_filter'
-        )
-        # Configure and apply the statistical test
-        annotator.configure(
-            # test='t-test_ind',
-            test='Mann-Whitney',
-            text_format='star',
-            loc='outside',
-            line_offset_to_group=10,
-            line_offset=1,
-            text_offset=0.1,
-            line_height=0.03,
-            hide_non_significant=True,
-        )
-        annotator.apply_and_annotate()
+        custom_thresholds = [[1e-3, "***"], [1e-2, "**"], [5e-2, "*"], [1, "ns"]]
+
+        # Annotate each panel separately with its own cross-condition pairs
+        for ax, panel_df in [
+            (ax1, df_CenterStart),
+            (ax2, df_CenterStartInterleave),
+            (ax3, df_RadialGrid),
+        ]:
+            panel_groups = set(panel_df['group'].unique())
+            panel_pairs = [
+                p for p in pairs_to_test
+                if p[0][0] in panel_groups and p[1][0] in panel_groups
+            ]
+            if not panel_pairs or len(panel_df) == 0:
+                continue
+
+            annotator = Annotator(
+                ax,
+                pairs=panel_pairs,
+                data=panel_df,
+                x='group',
+                y=feature,
+                hue='trial_filter',
+            )
+            annotator.configure(
+                test='Mann-Whitney',
+                text_format='star',
+                pvalue_thresholds=custom_thresholds,
+                loc='outside',
+                line_offset_to_group=10,
+                line_offset=1,
+                text_offset=0.1,
+                line_height=0.02,
+                line_width=0.5,
+                fontsize=5,
+                hide_non_significant=False,
+            )
+            custom_annots = []
+            for pair in panel_pairs:
+                g1 = panel_df.loc[
+                    (panel_df['group'] == pair[0][0]) & (panel_df['trial_filter'] == pair[0][1]),
+                    feature,
+                ].dropna().values
+                g2 = panel_df.loc[
+                    (panel_df['group'] == pair[1][0]) & (panel_df['trial_filter'] == pair[1][1]),
+                    feature,
+                ].dropna().values
+                n1, n2 = len(g1), len(g2)
+                if n1 > 0 and n2 > 0:
+                    u_stat, p_val = mannwhitneyu(g1, g2)
+                    r = 1 - 2 * u_stat / (n1 * n2)
+                    if p_val <= 1e-3:
+                        label = f"***\nr={r:.2f}"
+                    elif p_val <= 1e-2:
+                        label = f"**\nr={r:.2f}"
+                    elif p_val <= 5e-2:
+                        label = f"*\nr={r:.2f}"
+                    else:
+                        label = "ns"
+                    custom_annots.append(label)
+                else:
+                    custom_annots.append("ns")
+            annotator.set_custom_annotations(custom_annots)
+            annotator.annotate()
 
         ## Compute and print 95% CI for paired or unpaired data
         for pair in pairs_to_test:
@@ -515,10 +557,7 @@ def plot_stats(
             group2 = df[(df['group'] == pair[1][0]) & (df['trial_filter'] == pair[1][1])][feature].values
 
             if len(group1) > 1 and len(group2) > 1:
-                if len(group1) == len(group2):
-                    paired_95_CI(group1, group2)
-                else:
-                    unpaired_95_CI(group1, group2)
+                unpaired_95_CI(group1, group2)
 
     # ax.margins(y=0.2)  # 20% margin above the data
     if y_max is not None:
@@ -544,6 +583,9 @@ def print_stats(df: pd.DataFrame,
     by_config = False → one row per **(subject × array)**
     by_config = True  → one row per **(subject × cohort × array)**
     """
+
+    _AGG_MAP = {np.median: 'median', np.mean: 'mean'}
+    agg_fn   = _AGG_MAP.get(agg_fn, agg_fn)
 
     # ────────────────────────── config ───────────────────────────
     GROUP_A   = {'ballistic', 'near'}
@@ -614,28 +656,66 @@ def print_stats(df: pd.DataFrame,
     print(tbl)
 
 
+def print_stats_combined(df: pd.DataFrame,
+                         agg_fn=np.median,
+                         prec: int = 3):
+    """Print condition-combined stats (pooled across conditions).
+
+    For each group, all observations are pooled regardless of condition
+    and the aggregate (default: median) is computed directly.
+    """
+    _AGG_MAP = {np.median: 'median', np.mean: 'mean'}
+    agg_fn   = _AGG_MAP.get(agg_fn, agg_fn)
+
+    NUM_COLS = ['peak_value', 'peak_time', 'peak_onset_time', 'peak_duration']
+
+    def _meta(df):
+        meta           = df['session'].str.extract(r'sub-(?P<subject>N\d+)_ses-(?P<date>\d{8})')
+        meta['cohort'] = df['group'].str.split().str[-1]
+        df             = df.join(meta)
+        df['Session Info'] = df['subject'] + ' ' + df['date'] + ' ' + meta['cohort']
+        df.rename(columns={'unit_filter': 'Array Location'}, inplace=True)
+        return df
+
+    def _fmt(x, prec): return f"{x:.{prec}f}" if np.isfinite(x) else "–"
+
+    df = _meta(df.copy())
+
+    def make_row(label, sub):
+        pooled = sub[NUM_COLS].agg(agg_fn)
+        return [label,
+                sub['Array Location'].iat[0] if 'Array Location' in sub else "",
+                len(sub),
+                _fmt(pooled['peak_value'], prec),
+                _fmt(pooled['peak_time'], prec),
+                _fmt(pooled['peak_onset_time'], prec),
+                _fmt(pooled['peak_duration'], prec)]
+
+    tbl = PrettyTable()
+    tbl.field_names = ["Session Info", "Array Location", "# Obs",
+                       "Peak Magnitude", "Peak Time",
+                       "Peak Onset Time", "Peak Duration"]
+
+    # 1) session-wise rows
+    for (sess, arr), sub in df.groupby(['Session Info', 'Array Location']):
+        tbl.add_row(make_row(sess, sub))
+
+    # 2) subject × array summary rows
+    for (subj, arr), g in df.groupby(['subject', 'Array Location']):
+        tbl.add_row(make_row(f"{subj} {arr} AVG", g))
+
+    print("\n── Condition-combined (pooled, median) ──")
+    print(tbl)
+
+
 def analyze_significance(df, feature, pairs_to_test, correction_factor=1):
     
     from prettytable import PrettyTable
-    from scipy.stats import wilcoxon, mannwhitneyu, sem
+    from scipy.stats import mannwhitneyu, sem
     import numpy as np
     from math import isnan
 
-    # Helper functions that return (mean_diff, ci_lower, ci_upper) instead of printing
-    def compute_paired_95_CI(array1, array2):
-        differences = array1 - array2
-        mean_diff = np.mean(differences)
-        sem_diff = sem(differences)  # = std(differences)/sqrt(n)
-        df = len(differences) - 1
-        if df < 1:
-            return np.nan, np.nan, np.nan
-        # t-crit for 95% CI (two-tailed)
-        t_crit = t.ppf(1 - 0.025, df)
-        margin_of_error = t_crit * sem_diff
-        ci_lower = mean_diff - margin_of_error
-        ci_upper = mean_diff + margin_of_error
-        return mean_diff, ci_lower, ci_upper
-
+    # Helper function that returns (mean_diff, ci_lower, ci_upper) for unpaired data
     def compute_unpaired_95_CI(array1, array2):
         mean1 = np.mean(array1)
         mean2 = np.mean(array2)
@@ -684,15 +764,13 @@ def analyze_significance(df, feature, pairs_to_test, correction_factor=1):
     table = PrettyTable()
     table.field_names = [
         "Comparison",
-        "# Trials (Grp1)",
-        "# Trials (Grp2)",
-        # f"Mean ± SEM ({feature}; Grp1)",
-        # f"Mean ± SEM ({feature}; Grp2)",
+        "# Obs (Grp1)",
+        "# Obs (Grp2)",
         "Test",
-        # "Statistic",
         "p-value",
-        "p-val Annotation",
-        "Mean Diff",
+        "sig",
+        "r (rank-biserial)",
+        f"Mean Diff ({feature})",
         "95% CI"
     ]
 
@@ -709,42 +787,40 @@ def analyze_significance(df, feature, pairs_to_test, correction_factor=1):
         sem1  = sem(arr1) if len(arr1) > 1 else 0.0
         sem2  = sem(arr2) if len(arr2) > 1 else 0.0
 
-        # Decide paired or unpaired test
-        if len(arr1) == len(arr2) and len(arr1) > 1:
-        # if False:
-            # Paired: Wilcoxon
-            stat, p_val = wilcoxon(arr1, arr2)
-            mean_diff, ci_lower, ci_upper = compute_paired_95_CI(arr1, arr2)
-            test_name = "Wilcoxon (paired)"
+        # Unpaired: Mann–Whitney (trials across conditions are never paired)
+        if (len(arr1) > 0) and (len(arr2) > 0):
+            stat, p_val = mannwhitneyu(arr1, arr2)
+            mean_diff, ci_lower, ci_upper = compute_unpaired_95_CI(arr1, arr2)
+            test_name = "Mann–Whitney U"
         else:
-            # Unpaired: Mann–Whitney
-            if (len(arr1) > 0) and (len(arr2) > 0):
-                stat, p_val = mannwhitneyu(arr1, arr2)
-                mean_diff, ci_lower, ci_upper = compute_unpaired_95_CI(arr1, arr2)
-                test_name = "Mann–Whitney U"
-            else:
-                # Edge case: not enough data
-                stat, p_val = np.nan, np.nan
-                mean_diff, ci_lower, ci_upper = np.nan, np.nan, np.nan
-                test_name = "Mann–Whitney U (insufficient data)"
+            # Edge case: not enough data
+            stat, p_val = np.nan, np.nan
+            mean_diff, ci_lower, ci_upper = np.nan, np.nan, np.nan
+            test_name = "Mann–Whitney U (insufficient data)"
 
         # ipdb.set_trace()
 
         # Generate star annotation
         stars = pval_annotation(p_val if not isnan(p_val) else 1.0, correction_factor)
 
+        # Effect size: matched-pairs rank-biserial r
+        n1, n2 = len(arr1), len(arr2)
+        if not np.isfinite(stat) or not np.isfinite(p_val):
+            r_effect = np.nan
+        else:
+            # MWU: r = 1 - 2U / (n1 * n2)
+            r_effect = 1 - 2 * stat / (n1 * n2)
+
         # Build the row
         comp_label = f"{group1} {cond1} vs {group2} {cond2}"
         row = [
             comp_label,
-            len(arr1),
-            len(arr2),
-            # f"{mean1:.3f} ± {sem1:.3f}",
-            # f"{mean2:.3f} ± {sem2:.3f}",
+            n1,
+            n2,
             test_name,
-            # f"{stat:.3f}",
-            f"{p_val:.3g}",    # format p-value
+            f"{p_val:.3g}",
             stars,
+            f"{r_effect:+.3f}",
             f"{mean_diff:.3f}",
             f"[{ci_lower:.3f}, {ci_upper:.3f}]"
         ]
@@ -809,21 +885,46 @@ def combined_plot_N1_N2_N2_RadialGrid(feature):
     df_N2_CenterStartInterleave['task'] = 'CenterStartInterleave'
 
     df_combined = pd.concat(
-        [df_N1, df_N2, df_N2_RadialGrid, df_N2_CenterStartInterleave], 
+        [df_N1, df_N2, df_N2_RadialGrid, df_N2_CenterStartInterleave],
         ignore_index=True
     )
 
     df_combined.trial_filter = df_combined.trial_filter.replace('fast', 'ballistic')
     df_combined.trial_filter = df_combined.trial_filter.replace('slow', 'sustained')
 
-    ipdb.set_trace()
+    ## Filter out peak onset time or peak time outside [0.1, 1.0]s
+    n_before = len(df_combined)
+    mask_onset = (df_combined['peak_onset_time'] < 1.0) & (df_combined['peak_onset_time'] > 0.1)
+    mask_peak  = (df_combined['peak_time'] < 1.0) & (df_combined['peak_time'] > 0.1)
+    dropped = df_combined[~(mask_onset & mask_peak)]
+    if len(dropped) > 0:
+        print(f"\nDropped {len(dropped)}/{n_before} observations outside [0.1, 1.0]s:")
+        for _, row in dropped.iterrows():
+            print(f"  {row['session']}  {row.get('unit_filter','')}  {row['trial_filter']}  "
+                  f"peak_onset={row['peak_onset_time']:.3f}s  peak_time={row['peak_time']:.3f}s")
+        print()
+    df_combined = df_combined[mask_onset & mask_peak]
 
-    ## Filter out peak onset time or peak time larger than 1 second or less than 0.1 second
-    df_combined = df_combined[(df_combined['peak_onset_time'] < 1.0) & (df_combined['peak_onset_time'] > 0.1)]
-    df_combined = df_combined[(df_combined['peak_time'] < 1.0) & (df_combined['peak_time'] > 0.1)]
+    # ── Create pooled N2 groups (MC-LAT + MC-MED → "N2 MC") ──────────
+    pooled_map = {
+        'N2 MC CO':  ['N2 MCL CO',  'N2 MCM CO'],
+        'N2 MC COI': ['N2 MCL COI', 'N2 MCM COI'],
+        'N2 MC RG':  ['N2 MCL RG',  'N2 MCM RG'],
+    }
+    pooled_rows = []
+    for pooled_label, source_groups in pooled_map.items():
+        mask = df_combined['group'].isin(source_groups)
+        if mask.any():
+            rows = df_combined[mask].copy()
+            rows['group'] = pooled_label
+            pooled_rows.append(rows)
+    if pooled_rows:
+        df_combined = pd.concat([df_combined] + pooled_rows, ignore_index=True)
 
-    pairs = [
-        # --- ballistic vs. sustained (or near vs. far) ---
+    # ── Per-array pairs ───────────────────────────────────────────────
+
+    # Cross-condition pairs (within-group speed/distance comparisons)
+    cross_condition_pairs = [
         (("N1 MC CO", "ballistic"),   ("N1 MC CO", "sustained")),
         (("N2 MCL CO", "ballistic"),  ("N2 MCL CO", "sustained")),
         (("N2 MCM CO", "ballistic"),  ("N2 MCM CO", "sustained")),
@@ -831,25 +932,30 @@ def combined_plot_N1_N2_N2_RadialGrid(feature):
         (("N2 MCM COI", "ballistic"), ("N2 MCM COI", "sustained")),
         (("N2 MCL RG", "near"),       ("N2 MCL RG", "far")),
         (("N2 MCM RG", "near"),       ("N2 MCM RG", "far")),
+    ]
 
-        # --- N1 vs. N2 (ballistic vs. ballistic, sustained vs. sustained) ---
-        (("N1 MC CO", "ballistic"), ("N2 MCL CO", "ballistic")),
-        (("N1 MC CO", "ballistic"), ("N2 MCM CO", "ballistic")),
-        (("N1 MC CO", "sustained"), ("N2 MCL CO", "sustained")),
-        (("N1 MC CO", "sustained"), ("N2 MCM CO", "sustained")),
+    # Cross-participant pairs (N1 vs N2 per array)
+    cross_participant_pairs = [
+        (("N1 MC CO", "ballistic"),  ("N2 MCL CO", "ballistic")),
+        (("N1 MC CO", "ballistic"),  ("N2 MCM CO", "ballistic")),
+        (("N1 MC CO", "sustained"),  ("N2 MCL CO", "sustained")),
+        (("N1 MC CO", "sustained"),  ("N2 MCM CO", "sustained")),
+    ]
 
-        # --- N2 vs. N2 RadialGrid ---
+    # Cross-task pairs (same participant & array, different task)
+    cross_task_pairs = [
         (("N2 MCL CO", "ballistic"), ("N2 MCL COI", "ballistic")),
         (("N2 MCL CO", "sustained"), ("N2 MCL COI", "sustained")),
         (("N2 MCM CO", "ballistic"), ("N2 MCM COI", "ballistic")),
         (("N2 MCM CO", "sustained"), ("N2 MCM COI", "sustained")),
-
         (("N2 MCL CO", "ballistic"), ("N2 MCL RG", "near")),
         (("N2 MCL CO", "sustained"), ("N2 MCL RG", "far")),
         (("N2 MCM CO", "ballistic"), ("N2 MCM RG", "near")),
         (("N2 MCM CO", "sustained"), ("N2 MCM RG", "far")),
+    ]
 
-        # --- N2 MCL vs. MCM ---
+    # Cross-array pairs (same participant & task, different array)
+    cross_array_pairs = [
         (("N2 MCL CO", "ballistic"),  ("N2 MCM CO", "ballistic")),
         (("N2 MCL CO", "sustained"),  ("N2 MCM CO", "sustained")),
         (("N2 MCL COI", "ballistic"), ("N2 MCM COI", "ballistic")),
@@ -858,52 +964,58 @@ def combined_plot_N1_N2_N2_RadialGrid(feature):
         (("N2 MCL RG", "far"),        ("N2 MCM RG", "far")),
     ]
 
-    n_pairs = len(pairs)
+    # ── Pooled-region pairs (defined here, "all" rows added after plotting) ──
+
+    # Cross-participant (N1 vs N2, arrays + conditions pooled)
+    cross_participant_pooled_pairs = [
+        (("N1 MC CO", "all"),  ("N2 MC CO", "all")),
+    ]
+
+    # Cross-condition (N2, arrays pooled)
+    cross_condition_pooled_pairs = [
+        (("N2 MC CO", "ballistic"),  ("N2 MC CO", "sustained")),
+    ]
 
     if feature == 'peak_onset_time':
         plot_stats(
-            df_combined, 
-            feature='peak_onset_time', 
-            # y_max=5, # With significance brackets
-            y_max=1.0, # Without significance brackets
-            pairs_to_test=pairs,
-            annotate_stats=False,
+            df_combined,
+            feature='peak_onset_time',
+            y_max=1.0,
+            pairs_to_test=cross_condition_pairs,
+            annotate_stats=True,
             y_label='Peak Onset Time (s)',
             suffix='combined',
             show_x_labels=False)
-    
+
     elif feature == 'peak_time':
         plot_stats(
-            df_combined, 
+            df_combined,
             feature='peak_time',
-            # y_max=5, # With significance brackets
-            y_max=1.0, # Without significance brackets 
-            pairs_to_test=pairs,
-            annotate_stats=False,
+            y_max=1.0,
+            pairs_to_test=cross_condition_pairs,
+            annotate_stats=True,
             y_label='Peak Time (s)',
             suffix='combined',
             show_x_labels=False)
 
     elif feature == 'peak_duration':
         plot_stats(
-            df_combined, 
-            feature='peak_duration', 
-            # y_max=0.6, # With significance brackets
-            y_max=0.3, # Without significance brackets
-            pairs_to_test=pairs,
-            annotate_stats=False,
+            df_combined,
+            feature='peak_duration',
+            y_max=0.2,
+            pairs_to_test=cross_condition_pairs,
+            annotate_stats=True,
             y_label='Peak Duration (s)',
             suffix='combined',
             show_x_labels=True)
 
     elif feature == 'peak_value':
         plot_stats(
-            df_combined, 
-            feature='peak_value', 
-            # y_max=50000, # With significance brackets
-            y_max=25000, # Without significance brackets
-            pairs_to_test=pairs,
-            annotate_stats=False,
+            df_combined,
+            feature='peak_value',
+            y_max=35000,
+            pairs_to_test=cross_condition_pairs,
+            annotate_stats=True,
             y_label='Peak Magnitude (($\Delta$Hz / s)$^2$)',
             formersci_notation=True,
             suffix='combined',
@@ -911,7 +1023,42 @@ def combined_plot_N1_N2_N2_RadialGrid(feature):
     
     
     print_stats(df_combined, split=True)
-    analyze_significance(df_combined, feature=feature, pairs_to_test=pairs, correction_factor=n_pairs)
+    print_stats_combined(df_combined)
+
+    feature_labels = {
+        'peak_value':      'Peak Magnitude (ΔHz/s)²',
+        'peak_time':       'Peak Time (s)',
+        'peak_onset_time': 'Peak Onset Time (s)',
+        'peak_duration':   'Peak Duration (s)',
+    }
+    feature_label = feature_labels.get(feature, feature)
+
+    # Add "all" condition rows now (after plotting, for analyze_significance only)
+    all_rows = df_combined.copy()
+    all_rows['trial_filter'] = 'all'
+    df_combined = pd.concat([df_combined, all_rows], ignore_index=True)
+
+    all_groups = set(df_combined['group'].unique())
+
+    sep = '=' * 70
+    for category_label, category_pairs in [
+        ('PER-ARRAY | cross-condition',                               cross_condition_pairs),
+        ('PER-ARRAY | cross-participant (N1 vs N2)',                   cross_participant_pairs),
+        ('PER-ARRAY | cross-task (CO vs COI vs RG)',                   cross_task_pairs),
+        ('PER-ARRAY | cross-array (MCL vs MCM)',                       cross_array_pairs),
+        ('POOLED    | cross-participant (N1 vs N2, all pooled)',         cross_participant_pooled_pairs),
+        ('POOLED    | cross-condition (N2, arrays pooled)',             cross_condition_pooled_pairs),
+    ]:
+        # Keep only pairs whose groups exist in the data
+        valid_pairs = [p for p in category_pairs
+                       if p[0][0] in all_groups and p[1][0] in all_groups]
+        if not valid_pairs:
+            continue
+        print(f'\n{sep}')
+        print(f'  {feature_label}  |  {category_label}')
+        print(sep)
+        analyze_significance(df_combined, feature=feature,
+                             pairs_to_test=valid_pairs, correction_factor=1)
     
 
 def combined_plot_N1_N2(feature):
@@ -1046,7 +1193,17 @@ def answer_peak_questions():
     df = pd.concat([df_N1, df_N2], ignore_index=True)
 
     df.trial_filter = df.trial_filter.replace({'fast':'ballistic', 'slow':'sustained'})
-    df = df[(df.peak_onset_time.between(0.1,1.0)) & (df.peak_time.between(0.1,1.0))]
+    ## Filter out peak onset time or peak time outside [0.1, 1.0]s
+    n_before = len(df)
+    mask = df.peak_onset_time.between(0.1, 1.0) & df.peak_time.between(0.1, 1.0)
+    dropped = df[~mask]
+    if len(dropped) > 0:
+        print(f"\nDropped {len(dropped)}/{n_before} observations outside [0.1, 1.0]s:")
+        for _, row in dropped.iterrows():
+            print(f"  {row['session']}  {row.get('unit_filter','')}  {row['trial_filter']}  "
+                  f"peak_onset={row['peak_onset_time']:.3f}s  peak_time={row['peak_time']:.3f}s")
+        print()
+    df = df[mask]
 
     def pick(g, c, col):
         return df[(df.group==g) & (df.trial_filter==c)][col].dropna().values
@@ -1096,10 +1253,10 @@ if __name__ == "__main__":
 
     answer_peak_questions()
 
-    # combined_plot_N1_N2_N2_RadialGrid(feature='peak_value')
-    # combined_plot_N1_N2_N2_RadialGrid(feature='peak_time')
-    # combined_plot_N1_N2_N2_RadialGrid(feature='peak_onset_time')
-    # combined_plot_N1_N2_N2_RadialGrid(feature='peak_duration')
+    combined_plot_N1_N2_N2_RadialGrid(feature='peak_value')
+    combined_plot_N1_N2_N2_RadialGrid(feature='peak_time')
+    combined_plot_N1_N2_N2_RadialGrid(feature='peak_onset_time')
+    combined_plot_N1_N2_N2_RadialGrid(feature='peak_duration')
     
     # combined_plot_N1_N2(feature='peak_onset_time')
     # combined_plot_N1_N2(feature='peak_duration')
