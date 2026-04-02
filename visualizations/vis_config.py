@@ -1,13 +1,13 @@
-"""Shared plotting style settings and color palettes for all SLDS figures."""
 
 import seaborn as sns
 import matplotlib as mpl
 import matplotlib.colors as mcolors
-import scripts.config as config
+import config_SfN2024 as config
 
 
-# print(mpl.rcParams.keys())  # Uncomment to inspect available rcParams
-# Set a Nature-style default look for all figures generated in this repo
+# print(mpl.rcParams.keys())  # Print current rcParams for debugging
+# Set the default style for matplotlib
+# Nature font & sizing
 mpl.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["Arial"],   # Helvetica on macOS
@@ -28,12 +28,10 @@ mpl.rcParams.update({
     # "errorbar.capthick" : 0.5,   # caps
     # "errorbar.capsize" : 1
 })
-mm = 1/25.4  # convenient conversion from millimeters to inches for figsize
+mm = 1/25.4
 
 
-# -----------------------------------------------------------------------------
-# Read parameters from config (mirrors analysis scripts for consistency)
-# -----------------------------------------------------------------------------
+## Read parameters from config
 data_dir           = config.data_dir
 results_dir        = config.results_dir
 vis_dir            = config.vis_dir
@@ -69,9 +67,6 @@ n_ns_iters             = len(ns_iters)
 
 
 
-# -----------------------------------------------------------------------------
-# Reusable transparency/size defaults for scatter/line elements
-# -----------------------------------------------------------------------------
 alpha_point = 0.8
 size_point  = 100
 alpha_line_thin  = 0.3
@@ -84,9 +79,6 @@ label_fontsize = 18
 
 
 
-# -----------------------------------------------------------------------------
-# Color themes grouped by task and condition (ballistic/sustained/near/far)
-# -----------------------------------------------------------------------------
 theme_coral_light  = '#FFCCCC'
 theme_coral_mid    = '#F79C9C'
 theme_coral_dark   = '#E86B6B'
@@ -137,7 +129,6 @@ color_palettes = {
     },
 }
 
-# Discrete state color stacks (indexing into hidden state IDs per task)
 discrete_state_colors = {
     'CenterStart': {
         'fast': [theme_blue_dark, theme_blue_light, theme_blue_mid],
@@ -153,7 +144,6 @@ discrete_state_colors = {
     },
 }
 
-# Continuous colormaps used for heatmaps/gradients per condition
 color_maps = {
     'CenterStart': {
         'fast': mcolors.LinearSegmentedColormap.from_list('CO fast', [blues[2], blues[0]]),
@@ -240,18 +230,35 @@ session_trajectory_viewing_angles = {
                     'slow': [-160, 125, 15]},
             },
             'joint': {
+                ## Submission 0 standard
+                # 'view1' : {
+                #     'fast': [-44, -150, 90],
+                #     'slow': [-44, -150, 90]},
+                # 'view2' : {
+                #     'fast': [-130, -150, 0],
+                #     'slow': [-130, -150, 0]},
+                # 'view1_d2' : {
+                #     'fast': [-120, 10, 30],
+                #     'slow': [-120, 10, 30]},
+                # 'view2_d2' : {
+                #     'fast': [-160, 125, 15],
+                #     'slow': [-160, 125, 15]},
+
+                ## Revision 1 standard
                 'view1' : {
-                    'fast': [-44, -150, 90],
-                    'slow': [-44, -150, 90]},
+                    'fast': [10, -110, 70],
+                    'slow': [10, -110, 70]},
                 'view2' : {
-                    'fast': [-130, -150, 0],
-                    'slow': [-130, -150, 0]},
+                    'fast': [35, 80, -170],
+                    'slow': [35, 80, -170]},
                 'view1_d2' : {
-                    'fast': [-120, 10, 30],
-                    'slow': [-120, 10, 30]},
+                    'fast': [-5, -110, 70],
+                    'slow': [-5, -110, 70]},
                 'view2_d2' : {
-                    'fast': [-160, 125, 15],
-                    'slow': [-160, 125, 15]},
+                    'fast': [-55, -80, -40],
+                    'slow': [-55, -80, -40]},
+                
+                
             }
         }
     }, 
@@ -263,12 +270,12 @@ session_trajectory_viewing_angles = {
                     'slow': [10, 30, 0]},
             },
             'joint': {
-                'view1_d2' : {
-                    'fast': [10, 30, 0],
-                    'slow': [10, 30, 0]},
                 'view1' : {
                     'fast': [60, 30, 0],
                     'slow': [60, 30, 0]},
+                'view1_d2' : {
+                    'fast': [10, 30, 0],
+                    'slow': [10, 30, 0]},
             }
         }
     }, 
@@ -280,12 +287,12 @@ session_trajectory_viewing_angles = {
                     'slow': [-15, 75, 0]},
             },
             'joint': {
-                'view1_d2' : {
-                    'fast': [-15, 75, 0],
-                    'slow': [-15, 75, 0]},
                 'view1' : {
                     'fast': [-50, 60, 0],
                     'slow': [-50, 60, 0]},
+                'view1_d2' : {
+                    'fast': [-15, 75, 0],
+                    'slow': [-15, 75, 0]},
             }
         }
     }, 
@@ -297,6 +304,9 @@ session_trajectory_viewing_angles = {
                     'slow': [125, -140, 0]},
             },
             'joint': {
+                'view1' : {
+                    'fast': [125, -140, 0],
+                    'slow': [125, -140, 0]},
                 'view1_d2' : {
                     'fast': [125, -140, 0],
                     'slow': [125, -140, 0]},
@@ -309,6 +319,9 @@ session_trajectory_viewing_angles = {
                     'slow': [-30, 120, 0]},
             },
             'joint': {
+                'view1' : {
+                    'fast': [-30, 120, 0],
+                    'slow': [-30, 120, 0]},
                 'view1_d2' : {
                     'fast': [-30, 120, 0],
                     'slow': [-30, 120, 0]},
@@ -323,12 +336,18 @@ session_trajectory_viewing_angles = {
                     'slow': [65, 30, 0]},
             },
             'joint': {
-                'view1_d2' : {
-                    'fast': [65, 30, 0],
-                    'slow': [65, 30, 0]},
+                # 'view1' : {
+                #     'fast': [15, -70, 0],
+                #     'slow': [15, -70, 0]},
+                # 'view1_d2' : {
+                #     'fast': [65, 30, 0],
+                #     'slow': [65, 30, 0]},
                 'view1' : {
-                    'fast': [15, -70, 0],
-                    'slow': [15, -70, 0]},
+                    'fast': [-25, -80, 15],
+                    'slow': [-25, -80, 15]},
+                'view1_d2' : {
+                    'fast': [-25, -80, 15],
+                    'slow': [-25, -80, 15]},
             }
         },
         'MC-MED' : {
@@ -338,12 +357,18 @@ session_trajectory_viewing_angles = {
                     'slow': [-40, 60, 0]},
             },
             'joint': {
-                'view1_d2' : {
-                    'fast': [-40, 60, 0],
-                    'slow': [-40, 60, 0]},
+                # 'view1' : {
+                #     'fast': [15, 30, 0],
+                #     'slow': [15, 30, 0]},
+                # 'view1_d2' : {
+                #     'fast': [-40, 60, 0],
+                #     'slow': [-40, 60, 0]},
                 'view1' : {
-                    'fast': [15, 30, 0],
-                    'slow': [15, 30, 0]},
+                    'fast': [-50, 45, 45],
+                    'slow': [-50, 45, 45]},
+                'view1_d2' : {
+                    'fast': [-50, 45, 45],
+                    'slow': [-50, 45, 45]},
             }
         }
     },
@@ -355,12 +380,12 @@ session_trajectory_viewing_angles = {
                     'slow': [170, -150, 0]},
             },
             'joint': {
-                'view1_d2' : {
-                    'fast': [170, -150, 0],
-                    'slow': [170, -150, 0]},
                 'view1' : {
                     'fast': [230, -130, 0],
                     'slow': [230, -130, 0]},
+                'view1_d2' : {
+                    'fast': [50, 80, -160],
+                    'slow': [50, 80, -160]},
             }
         },
         'MC-MED' : {
@@ -370,12 +395,12 @@ session_trajectory_viewing_angles = {
                     'slow': [40, -30, 0]},
             },
             'joint': {
-                'view1_d2' : {
-                    'fast': [40, -30, 0],
-                    'slow': [40, -30, 0]},
                 'view1' : {
                     'fast': [45, -125, 0],
                     'slow': [45, -125, 0]},
+                'view1_d2' : {
+                    'fast': [-40, -90, -10],
+                    'slow': [-40, -90, -10]},
             }
         }
     },
@@ -387,6 +412,9 @@ session_trajectory_viewing_angles = {
                     'slow': [140, -70, 0]},
             },
             'joint': {
+                'view1' : {
+                    'fast': [140, -70, 0],
+                    'slow': [140, -70, 0]},
                 'view1_d2' : {
                     'fast': [140, -70, 0],
                     'slow': [140, -70, 0]},
@@ -399,6 +427,9 @@ session_trajectory_viewing_angles = {
                     'slow': [40, -120, 0]},
             },
             'joint': {
+                'view1' : {
+                    'fast': [40, -120, 0],
+                    'slow': [40, -120, 0]},
                 'view1_d2' : {
                     'fast': [40, -120, 0],
                     'slow': [40, -120, 0]},
@@ -413,9 +444,12 @@ session_trajectory_viewing_angles = {
                     'slow': [155, -165, 0]},
             },
             'joint': {
-                'view1_d2' : {
+                'view1' : {
                     'fast': [155, -165, 0],
                     'slow': [155, -165, 0]},
+                'view1_d2' : {
+                    'fast': [-25, -150, -45],
+                    'slow': [-25, -150, -45]},
             }
         },
         'MC-MED' : {
@@ -425,9 +459,12 @@ session_trajectory_viewing_angles = {
                     'slow': [40, -120, 0]},
             },
             'joint': {
-                'view1_d2' : {
+                'view1' : {
                     'fast': [40, -120, 0],
                     'slow': [40, -120, 0]},
+                'view1_d2' : {
+                    'fast': [-50, -105, -35],
+                    'slow': [-50, -105, -35]},
             }
         }
     },
@@ -439,9 +476,12 @@ session_trajectory_viewing_angles = {
                     'slow': [-130, -40, 0]},
             },
             'joint': {
-                'view1_d2' : {
+                'view1' : {
                     'fast': [-130, -40, 0],
                     'slow': [-130, -40, 0]},
+                'view1_d2' : {
+                    'fast': [40, 120, 0],
+                    'slow': [40, 120, 0]},
             }
         },
         'MC-MED' : {
@@ -451,9 +491,12 @@ session_trajectory_viewing_angles = {
                     'slow': [-20, -35, 0]},
             },
             'joint': {
-                'view1_d2' : {
+                'view1' : {
                     'fast': [-20, -35, 0],
                     'slow': [-20, -35, 0]},
+                'view1_d2' : {
+                    'fast': [-50, 165, -130],
+                    'slow': [-50, 165, -130]},
             }
         }
     },
@@ -465,9 +508,12 @@ session_trajectory_viewing_angles = {
                     'far' : [-30, -60, 0]},
             },
             'joint': {
-                'view1_d2' : {
+                'view1' : {
                     'near': [-30, -60, 0],
                     'far' : [-30, -60, 0]},
+                'view1_d2' : {
+                    'near': [23, -114, -20],
+                    'far' : [23, -114, -20]},
             }
         },
         'MC-MED' : {
@@ -477,9 +523,12 @@ session_trajectory_viewing_angles = {
                     'far' : [30, -25, 0]},
             },
             'joint': {
-                'view1_d2' : {
+                'view1' : {
                     'near': [30, -25, 0],
                     'far' : [30, -25, 0]},
+                'view1_d2' : {
+                    'near': [50, 130, 145],
+                    'far' : [50, 130, 145]},
             }
         }
     },
@@ -491,6 +540,9 @@ session_trajectory_viewing_angles = {
                     'far' : [50, -20, 0]},
             },
             'joint': {
+                'view1' : {
+                    'near': [50, -20, 0],
+                    'far' : [50, -20, 0]},
                 'view1_d2' : {
                     'near': [50, -20, 0],
                     'far' : [50, -20, 0]},
@@ -503,6 +555,9 @@ session_trajectory_viewing_angles = {
                     'far' : [-125, 30, 0]},
             },
             'joint': {
+                'view1' : {
+                    'near': [-125, 30, 0],
+                    'far' : [-125, 30, 0]},
                 'view1_d2' : {
                     'near': [-125, 30, 0],
                     'far' : [-125, 30, 0]},
@@ -517,6 +572,9 @@ session_trajectory_viewing_angles = {
                     'far' : [40, 20, 0]},
             },
             'joint': {
+                'view1' : {
+                    'near': [40, 20, 0],
+                    'far' : [40, 20, 0]},
                 'view1_d2' : {
                     'near': [40, 20, 0],
                     'far' : [40, 20, 0]},
@@ -529,6 +587,9 @@ session_trajectory_viewing_angles = {
                     'far' : [40, -130, 0]},
             },
             'joint': {
+                'view1' : {
+                    'near': [40, -130, 0],
+                    'far' : [40, -130, 0]},
                 'view1_d2' : {
                     'near': [40, -130, 0],
                     'far' : [40, -130, 0]},
@@ -543,6 +604,9 @@ session_trajectory_viewing_angles = {
                     'slow': [55, -150, 0]},
             },
             'joint': {
+                'view1' : {
+                    'fast': [55, -150, 0],
+                    'slow': [55, -150, 0]},
                 'view1_d2' : {
                     'fast': [55, -150, 0],
                     'slow': [55, -150, 0]},
@@ -555,9 +619,12 @@ session_trajectory_viewing_angles = {
                     'slow': [50, -120, 0]},
             },
             'joint': {
-                'view1_d2' : {
+                'view1' : {
                     'fast': [50, -120, 0],
                     'slow': [50, -120, 0]},
+                'view1_d2' : {
+                    'fast': [-45, -105, 60],
+                    'slow': [-45, -105, 60]},
             }
         }
     },
@@ -569,6 +636,9 @@ session_trajectory_viewing_angles = {
                     'slow': [50, 25, 0]},
             },
             'joint': {
+                'view1' : {
+                    'fast': [50, 25, 0],
+                    'slow': [50, 25, 0]},
                 'view1_d2' : {
                     'fast': [50, 25, 0],
                     'slow': [50, 25, 0]},
@@ -581,6 +651,9 @@ session_trajectory_viewing_angles = {
                     'slow': [45, -55, 0]},
             },
             'joint': {
+                'view1' : {
+                    'fast': [45, -55, 0],
+                    'slow': [45, -55, 0]},
                 'view1_d2' : {
                     'fast': [45, -55, 0],
                     'slow': [45, -55, 0]},
@@ -595,12 +668,12 @@ session_trajectory_viewing_angles = {
                     'slow': [25, 55, 0]},
             },
             'joint': {
-                'view1_d2' : {
-                    'fast': [25, 55, 0],
-                    'slow': [25, 55, 0]},
                 'view1' : {
                     'fast': [-35, 55, 0],
                     'slow': [-35, 55, 0]},
+                'view1_d2' : {
+                    'fast': [25, 55, 0],
+                    'slow': [25, 55, 0]},
             }
         },
         'MC-MED' : {
@@ -610,6 +683,9 @@ session_trajectory_viewing_angles = {
                     'slow': [30, 65, 0]},
             },
             'joint': {
+                'view1' : {
+                    'fast': [30, 65, 0],
+                    'slow': [30, 65, 0]},
                 'view1_d2' : {
                     'fast': [30, 65, 0],
                     'slow': [30, 65, 0]},

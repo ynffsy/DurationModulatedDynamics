@@ -1,5 +1,3 @@
-"""Figure helpers for decoding, inference, entropy, and DSUP visualizations."""
-
 import os
 import ipdb
 import itertools
@@ -16,15 +14,13 @@ from statsmodels.stats.multitest import fdrcorrection
 import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-import utils.utils_vis as utils_vis
-import scripts.config as config
-from visualizations.vis_config import *
+import dynamical_systems_analyses.utils.utils_vis as utils_vis
+import config_SfN2024 as config
+from vis_config import *
 
 
 
-# -----------------------------------------------------------------------------
-# Shared configuration and hyper-parameter grids reused across plotting calls
-# -----------------------------------------------------------------------------
+## Read parameters from config
 data_dir           = config.data_dir
 results_dir        = config.results_dir
 vis_dir            = config.vis_dir
@@ -60,9 +56,6 @@ n_ns_iters             = len(ns_iters)
 
 
 
-# -----------------------------------------------------------------------------
-# Default marker/line styling for paper figures
-# -----------------------------------------------------------------------------
 alpha_point = 0.8
 size_point  = 100
 alpha_line_thin  = 0.3
@@ -75,9 +68,6 @@ label_fontsize = 18
 
 
 
-# -----------------------------------------------------------------------------
-# Color palettes for conditions and discrete states
-# -----------------------------------------------------------------------------
 theme_coral_light = (255/255, 204/255, 204/255)
 theme_coral_mid   = (247/255, 156/255, 156/255)
 theme_coral_dark  = (232/255, 107/255, 107/255)
@@ -250,8 +240,6 @@ def plot_decoding_results_avg_session(
     alpha,
     train_or_test='test',
     form='heatmap'):
-
-    """Aggregate decoding errors across sessions/random states, then plot either heatmaps or scatter summaries."""
 
     print('Plotting decoding results...')
 
@@ -654,8 +642,6 @@ def plot_per_time_decoding_results_avg_session(
     truncate_percentile=10,
     visual_delay_time=0):
 
-    """Plot decoding error trajectories over time for same-speed and cross-speed models across sessions."""
-
     print('Plotting decoding results...')
 
     rSLDS_same_speed_decoding_name = '_'.join(map(str, [x for x in [
@@ -983,8 +969,6 @@ def plot_inference_results_avg_session(
     inference_type='forecast',
     form='heatmap'):
 
-    """Summarize inference R² across model sizes for fast/slow trials and plot heatmaps or waterfall views."""
-
     print('Plotting inference results...')
 
     task_name = session_data_names[0].split('_')[-1]
@@ -1246,8 +1230,6 @@ def plot_per_time_inference_results_avg_session(
     inference_type='forecast',
     truncate_percentile=10,
     visual_delay_time=0):
-
-    """Plot per-time inference performance for fast/slow trials, plus difference traces and significance markers."""
 
     print('Plotting inference results...')
 
@@ -1775,8 +1757,6 @@ def plot_dsupr_results_avg_session(
     train_or_test='test',
     form='lines'):
 
-    """Aggregate DSUP ratios across sessions and visualize them as lines, surfaces, or heatmaps."""
-
     print('Plotting DSUP Ratio results...')
 
     task_name = session_data_names[0].split('_')[-1]
@@ -2035,8 +2015,6 @@ def plot_per_time_dsupr_results_avg_session(
     alpha,
     truncate_percentile=10,
     visual_delay_time=0):
-
-    """Plot per-time DSUP trajectories for same- vs cross-speed models and save 3D line plots."""
 
     print('Plotting dsupr results...')
 
@@ -2358,8 +2336,6 @@ def plot_elbos_avg_session(
     train_or_test='test',
     form='heatmap'):
 
-    """Compare ELBOs across latent dimensionalities for fast/slow models with multiple plot styles."""
-
     print('Plotting ELBOs...')
 
     xticks = np.arange(len(ns_states))
@@ -2644,8 +2620,6 @@ def plot_entropy_results_avg_session(
     train_or_test='test',
     form='heatmap'):
 
-    """Plot entropy differences (trial minus time) for fast/slow models and save compact visual summaries."""
-
     print('Plotting Entropy Difference results...')
 
     task_name = session_data_names[0].split('_')[-1]
@@ -2853,6 +2827,209 @@ def plot_entropy_results_avg_session(
     fig.savefig(os.path.join(vis_dir, 'entropy_color_bar.pdf'), bbox_inches=None, transparent=True, dpi=600, format='pdf')
 
 
+def plot_skew_ratio_results_avg_session(
+    unit_filter,
+    input_unit_filter,
+    data_format,
+    train_test_option,
+    dynamics_class,
+    emission_class,
+    init_type,
+    subspace_type,
+    alpha,
+    train_or_test='test',
+    form='lines'):
+
+    print('Plotting Skew-Symmetric Ratio results...')
+
+    task_name = session_data_names[0].split('_')[-1]
+
+    xticks = np.arange(len(ns_states))
+    xticklabels = ns_states
+
+    ## Load rSLDS results
+    rSLDS_skew_name = '_'.join(map(str, [x for x in [
+        'skew_ratio',
+        unit_filter,
+        input_unit_filter,
+        window_config,
+        time_offset,
+        data_format,
+        trial_filters,
+        train_test_option,
+        random_states,
+        n_folds,
+        ns_states,
+        ns_discrete_states,
+        ns_iters,
+        'rSLDS',
+        dynamics_class,
+        emission_class,
+        init_type,
+        subspace_type,
+        alpha] if x is not None]))
+
+    ## Load LDS results
+    LDS_skew_name = '_'.join(map(str, [x for x in [
+        'skew_ratio',
+        unit_filter,
+        input_unit_filter,
+        window_config,
+        time_offset,
+        data_format,
+        trial_filters,
+        train_test_option,
+        random_states,
+        n_folds,
+        ns_states,
+        ns_discrete_states,
+        ns_iters,
+        'LDS',
+        dynamics_class,
+        emission_class,
+        init_type,
+        subspace_type,
+        alpha] if x is not None]))
+
+    rSLDS_skew_slow_all = []
+    rSLDS_skew_fast_all = []
+    LDS_skew_slow_all = []
+    LDS_skew_fast_all = []
+
+    for session_data_name in session_data_names:
+
+        session_results_dir = os.path.join(results_dir, session_data_name)
+
+        ## rSLDS
+        rSLDS_skew = np.load(os.path.join(session_results_dir, rSLDS_skew_name + '.npz'))
+        rSLDS_skew_slow = rSLDS_skew['skew_ratio_slow']
+        rSLDS_skew_fast = rSLDS_skew['skew_ratio_fast']
+
+        ## Take the last n_iters
+        rSLDS_skew_slow = rSLDS_skew_slow[..., -1]
+        rSLDS_skew_fast = rSLDS_skew_fast[..., -1]
+
+        rSLDS_skew_slow_all.append(rSLDS_skew_slow)
+        rSLDS_skew_fast_all.append(rSLDS_skew_fast)
+
+        ## LDS
+        try:
+            LDS_skew = np.load(os.path.join(session_results_dir, LDS_skew_name + '.npz'))
+            LDS_skew_slow = LDS_skew['skew_ratio_slow']
+            LDS_skew_fast = LDS_skew['skew_ratio_fast']
+
+            LDS_skew_slow = LDS_skew_slow[..., -1]
+            LDS_skew_fast = LDS_skew_fast[..., -1]
+
+            LDS_skew_slow_all.append(LDS_skew_slow)
+            LDS_skew_fast_all.append(LDS_skew_fast)
+        except FileNotFoundError:
+            pass
+
+    ## Stack all sessions
+    rSLDS_skew_slow_all = np.stack(rSLDS_skew_slow_all, axis=0)
+    rSLDS_skew_fast_all = np.stack(rSLDS_skew_fast_all, axis=0)
+
+    ## Compute mean and standard error over sessions, random states, and folds
+    ## Dimensions after stacking: (sessions, train/test, random_states, folds, n_cont_states, n_disc_states)
+    rSLDS_skew_slow_all_mean = np.nanmean(rSLDS_skew_slow_all, axis=(0, 2, 3))
+    rSLDS_skew_fast_all_mean = np.nanmean(rSLDS_skew_fast_all, axis=(0, 2, 3))
+
+    correction_factor = np.sqrt(len(session_data_names) * len(random_states) * n_folds)
+    rSLDS_skew_slow_all_se = np.nanstd(rSLDS_skew_slow_all, axis=(0, 2, 3)) / correction_factor
+    rSLDS_skew_fast_all_se = np.nanstd(rSLDS_skew_fast_all, axis=(0, 2, 3)) / correction_factor
+
+    skew_results = {
+        'far': {
+            'mean': rSLDS_skew_slow_all_mean,
+            'se': rSLDS_skew_slow_all_se,
+        },
+        'near': {
+            'mean': rSLDS_skew_fast_all_mean,
+            'se': rSLDS_skew_fast_all_se,
+        }
+    }
+
+    train_or_test_id = 0 if train_or_test == 'train' else 1
+
+    ## Plot results
+    if form == 'heatmap':
+
+        fig, axs = plt.subplots(1, 2, figsize=(45*mm, 22.5*mm))
+
+        for i_tf, trial_filter in enumerate(trial_filters):
+
+            sns.heatmap(
+                skew_results[trial_filter]['mean'][train_or_test_id, ...].T,
+                ax=axs[i_tf],
+                cmap='mako',
+                cbar=False,
+                xticklabels=False,
+                yticklabels=False,
+                linewidths=0,
+                linecolor=None,
+                rasterized=True,
+            )
+
+            axs[i_tf].tick_params(left=False, bottom=False)
+            axs[i_tf].set_box_aspect(1)
+            axs[i_tf].invert_yaxis()
+
+        fig.tight_layout()
+
+    else:  # form == 'lines'
+
+        fig, axs = plt.subplots(1, 2, figsize=(45*mm, 22.5*mm), sharey=True)
+
+        for i_tf, trial_filter in enumerate(trial_filters):
+
+            for i_ds in reversed(range(len(ns_discrete_states))):
+
+                skew_mean = skew_results[trial_filter]['mean'][train_or_test_id, :, i_ds]
+                skew_se = skew_results[trial_filter]['se'][train_or_test_id, :, i_ds]
+
+                axs[i_tf].fill_between(
+                    ns_states,
+                    skew_mean - skew_se,
+                    skew_mean + skew_se,
+                    color=discrete_state_colors[i_ds],
+                    alpha=alpha_line,
+                    linewidth=0)
+
+            axs[i_tf].set_xticks(ns_states)
+            axs[i_tf].set_xticklabels([])
+
+            axs[i_tf].spines['top'].set_visible(False)
+            axs[i_tf].spines['right'].set_visible(False)
+
+        fig.tight_layout()
+
+    ## Write image
+    session_data_names_str = str(len(session_data_names)) + '_sessions'
+
+    img_name = '_'.join(map(str, [x for x in [
+        task_name,
+        session_data_names_str,
+        'skew_ratio',
+        train_or_test,
+        unit_filter,
+        input_unit_filter,
+        window_config,
+        time_offset,
+        data_format,
+        trial_filters,
+        train_test_option,
+        dynamics_class,
+        emission_class,
+        init_type,
+        subspace_type,
+        alpha,
+        form] if x is not None]))
+
+    save_path = os.path.join(vis_dir, img_name + '.pdf')
+
+    fig.savefig(save_path, dpi=600, transparent=True, bbox_inches=None, format='pdf')
+    plt.close(fig)
 
 
 if __name__ == '__main__':
@@ -3031,6 +3208,19 @@ if __name__ == '__main__':
     # #     #     form='waterfall')
 
     #     plot_entropy_results_avg_session(
+    #         unit_filter,
+    #         input_unit_filter,
+    #         data_format,
+    #         train_test_option,
+    #         dynamics_class,
+    #         emission_class,
+    #         init_type,
+    #         subspace_type,
+    #         alpha,
+    #         train_or_test='test',
+    #         form='heatmap')
+
+    #     plot_skew_ratio_results_avg_session(
     #         unit_filter,
     #         input_unit_filter,
     #         data_format,
