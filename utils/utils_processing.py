@@ -1,11 +1,21 @@
-"""Shared data wrangling helpers for loading, filtering, and aligning trials."""
-
 import os
+import sys
+import types
 import ipdb
 import pickle
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+# Compatibility shim: pandas 2.x removed pandas.core.indexes.numeric
+# (Int64Index, Float64Index, UInt64Index were merged into pd.Index).
+# Pickle files created with pandas 1.x fail to load without this patch.
+if "pandas.core.indexes.numeric" not in sys.modules:
+    _numeric_mod = types.ModuleType("pandas.core.indexes.numeric")
+    _numeric_mod.Int64Index = pd.Index
+    _numeric_mod.Float64Index = pd.Index
+    _numeric_mod.UInt64Index = pd.Index
+    sys.modules["pandas.core.indexes.numeric"] = _numeric_mod
 
 from scipy.interpolate import interp1d
 from scipy.spatial.distance import squareform
@@ -456,10 +466,10 @@ def resample_emissions(emissions, trial_length_new=None, trial_length_end_buffer
     for i_trial, trial_length in enumerate(trial_lengths):
 
         try:
-            times = emissions[i_trial].time
+            times = np.asarray(emissions[i_trial].time, dtype=float)
         except:
             times = np.arange(trial_length) * default_time_step
-            
+
         time_start = times[0]
         time_end   = times[-1 - trial_length_end_buffer]
 
@@ -472,15 +482,16 @@ def resample_emissions(emissions, trial_length_new=None, trial_length_end_buffer
 
         times_new_all.append(times_full)
 
+        emission_arr = np.asarray(emissions[i_trial], dtype=float)
         for i_neuron in range(n_neurons):
             if trial_length_end_buffer > 0:
                 ## Interpolate emissions up to the end buffer and append the last trial_length_end_buffer time steps
-                emission_interp = interp1d(times[:-trial_length_end_buffer], emissions[i_trial][:-trial_length_end_buffer, i_neuron], kind='linear', fill_value='extrapolate')
+                emission_interp = interp1d(times[:-trial_length_end_buffer], emission_arr[:-trial_length_end_buffer, i_neuron], kind='linear', fill_value='extrapolate')
                 emissions_new[i_trial, :trial_length_new, i_neuron] = emission_interp(times_base)
-                emissions_new[i_trial, trial_length_new:, i_neuron] = emissions[i_trial][-trial_length_end_buffer:, i_neuron]
-                
+                emissions_new[i_trial, trial_length_new:, i_neuron] = emission_arr[-trial_length_end_buffer:, i_neuron]
+
             else:
-                emission_interp = interp1d(times, emissions[i_trial][:, i_neuron], kind='linear', fill_value='extrapolate')
+                emission_interp = interp1d(times, emission_arr[:, i_neuron], kind='linear', fill_value='extrapolate')
                 emissions_new[i_trial, :, i_neuron] = emission_interp(times_base)
 
     return emissions_new, np.repeat(trial_length_full, n_trials), times_new_all
@@ -637,42 +648,51 @@ def compute_crossnobis_matrix(
     dataset = temporal_dataset.convert_to_dataset(by='time')
 
     ## Compute the crossnobis matrix
-    results, rdm_vectors = calc_rdm_crossnobis(dataset, descriptor='time')
+    rdm_result = calc_rdm_crossnobis(dataset, descriptor='time')
+
+    # calc_rdm_crossnobis returns (RDMs, rdm_vectors) in patched versions,
+    # or just RDMs in stock rsatoolbox
+    if isinstance(rdm_result, tuple):
+        results, rdm_vectors = rdm_result
+    else:
+        results = rdm_result
+        rdm_vectors = None
 
     ## Get the averaged crossnobis matrix
-    crossnobis_matrix = results[0].get_matrices()[0]
-
-    ## Restore rdms_all to the same format (it was stored as upper triangular matrices)
-    n_trials = rdm_vectors.shape[0]
+    crossnobis_matrix = results.get_matrices()[0]
     n_cond = crossnobis_matrix.shape[0]
 
-    crossnobis_matrices = np.ndarray((n_trials, n_cond, n_cond))
-    for i_trial in np.arange(n_trials):
-        crossnobis_matrices[i_trial, :, :] = squareform(rdm_vectors[i_trial, :])  # This is the same implementation as in rsatoolbox
+    ## Restore per-fold matrices if available
+    if rdm_vectors is not None:
+        n_folds = rdm_vectors.shape[0]
+        crossnobis_matrices = np.ndarray((n_folds, n_cond, n_cond))
+        for i_fold in np.arange(n_folds):
+            crossnobis_matrices[i_fold, :, :] = squareform(rdm_vectors[i_fold, :])
 
-    # -----------------------------------------------------
-    # SHAPE consistency
-    assert crossnobis_matrix.shape[0] == crossnobis_matrix.shape[1], \
-        "crossnobis_matrix must be square"
-    assert crossnobis_matrices.shape[1:] == crossnobis_matrix.shape, \
-        "per-fold matrices must match the grand matrix shape"
+        # -----------------------------------------------------
+        # SHAPE consistency
+        assert crossnobis_matrix.shape[0] == crossnobis_matrix.shape[1], \
+            "crossnobis_matrix must be square"
+        assert crossnobis_matrices.shape[1:] == crossnobis_matrix.shape, \
+            "per-fold matrices must match the grand matrix shape"
 
-    # -----------------------------------------------------
-    # SYMMETRY  (diagonal zero, off-diagonal mirrored)
-    eps = 1e-10
-    assert np.allclose(np.diag(crossnobis_matrix), 0, atol=eps)
-    assert np.allclose(crossnobis_matrix, crossnobis_matrix.T, atol=eps)
+        # -----------------------------------------------------
+        # SYMMETRY  (diagonal zero, off-diagonal mirrored)
+        eps = 1e-10
+        assert np.allclose(np.diag(crossnobis_matrix), 0, atol=eps)
+        assert np.allclose(crossnobis_matrix, crossnobis_matrix.T, atol=eps)
 
-    # each fold should be symmetric and diagonal-zero, too
-    for m in crossnobis_matrices:
-        assert np.allclose(m, m.T, atol=eps)
-        assert np.allclose(np.diag(m), 0, atol=eps)
+        for m in crossnobis_matrices:
+            assert np.allclose(m, m.T, atol=eps)
+            assert np.allclose(np.diag(m), 0, atol=eps)
 
-    # -----------------------------------------------------
-    # GRAND average really equals the mean of folds?
-    assert np.allclose(crossnobis_matrix,
-                       crossnobis_matrices.mean(0), atol=eps), \
-           "Grand matrix should equal mean of per-fold matrices"
+        # GRAND average really equals the mean of folds?
+        assert np.allclose(crossnobis_matrix,
+                           crossnobis_matrices.mean(0), atol=eps), \
+               "Grand matrix should equal mean of per-fold matrices"
+    else:
+        # No per-fold vectors — return the grand matrix as a single-element stack
+        crossnobis_matrices = crossnobis_matrix[np.newaxis]
 
     return crossnobis_matrix, crossnobis_matrices
 
@@ -826,6 +846,121 @@ def compute_cross_speed_crossnobis_matrix(states_1, states_2):
     return (full_rdm[0:T, T:2*T],  # states1 - states1 (between)
         full_rdm[0:T, 0:T],        # states2 - states2 (within)
         full_rdm[T:2*T, T:2*T])    # states1 - states2 (within)
+
+
+def compute_cross_condition_crossnobis_matrix(
+    firing_rates_1,
+    firing_rates_2,
+):
+    """Compute a rectangular crossnobis distance matrix between two conditions.
+
+    Entry (t1, t2) is the cross-validated squared Mahalanobis distance
+    between firing-rate patterns at time t1 in condition 1 and time t2
+    in condition 2.
+
+    Uses leave-one-out cross-validation (each trial is its own fold),
+    matching the CV structure in compute_crossnobis_matrix. The number
+    of folds is min(n_trials_1, n_trials_2); surplus trials in the
+    larger condition are assigned to folds via modular arithmetic.
+
+    Parameters
+    ----------
+    firing_rates_1 : array (n_trials_1, T1, N)
+    firing_rates_2 : array (n_trials_2, T2, N)
+
+    Returns
+    -------
+    cross_matrix : array (T1, T2) – averaged cross-condition block
+    within_1     : array (T1, T1) – averaged within condition 1
+    within_2     : array (T2, T2) – averaged within condition 2
+    cross_matrices : array (n_fold_pairs, T1, T2) – per-fold cross-condition blocks
+    """
+
+    n_trials_1, T1, N = firing_rates_1.shape
+    n_trials_2, T2, _  = firing_rates_2.shape
+    assert firing_rates_2.shape[2] == N
+
+    assert n_trials_1 >= 2 and n_trials_2 >= 2, \
+        "cross-nobis needs at least 2 trials per condition"
+
+    # LOO: each trial is its own fold, capped at the smaller condition
+    # so every fold has data from both conditions
+    n_cv_folds = min(n_trials_1, n_trials_2)
+
+    T_total = T1 + T2
+
+    patterns_1 = firing_rates_1.reshape(n_trials_1 * T1, N)
+    patterns_2 = firing_rates_2.reshape(n_trials_2 * T2, N)
+    patterns_all = np.vstack([patterns_1, patterns_2])
+
+    # Condition labels: unique per (condition, time)
+    time_rep_1 = np.tile(np.arange(T1), n_trials_1)
+    time_rep_2 = np.tile(np.arange(T2), n_trials_2)
+    cond_labels = np.concatenate([
+        time_rep_1,            # 0 .. T1-1
+        T1 + time_rep_2])      # T1 .. T1+T2-1
+
+    # Cross-validation fold labels: each trial gets its own fold
+    run_labels_1 = np.repeat(np.arange(n_trials_1) % n_cv_folds, T1)
+    run_labels_2 = np.repeat(np.arange(n_trials_2) % n_cv_folds, T2)
+    run_labels = np.concatenate([run_labels_1, run_labels_2])
+
+    ds = Dataset(
+        patterns_all,
+        obs_descriptors=dict(cond=cond_labels, run=run_labels)
+    )
+
+    rdm_result = calc_rdm_crossnobis(
+        ds,
+        descriptor='cond',
+        cv_descriptor='run'
+    )
+
+    # calc_rdm_crossnobis may return (RDMs, rdm_vectors) or just RDMs
+    # depending on the rsatoolbox version
+    if isinstance(rdm_result, tuple):
+        results, rdm_vectors = rdm_result
+    else:
+        results = rdm_result
+        rdm_vectors = None
+
+    # Averaged full RDM
+    full_rdm = results.get_matrices()[0]
+
+    cross_matrix = full_rdm[0:T1, T1:T_total]
+    within_1     = full_rdm[0:T1, 0:T1]
+    within_2     = full_rdm[T1:T_total, T1:T_total]
+
+    # Per-fold-pair full RDMs → extract cross-condition blocks
+    if rdm_vectors is not None:
+        n_fold_pairs = rdm_vectors.shape[0]
+        cross_matrices = np.ndarray((n_fold_pairs, T1, T2))
+        for i_fold in range(n_fold_pairs):
+            full_fold = squareform(rdm_vectors[i_fold, :])
+            cross_matrices[i_fold, :, :] = full_fold[0:T1, T1:T_total]
+    else:
+        # Fallback: compute per-fold RDMs by running crossnobis with
+        # leave-one-fold-out CV for each fold pair
+        cv_folds = np.unique(run_labels)
+        per_fold_rdms = []
+        for fold in cv_folds:
+            ds_test = ds.subset_obs('run', fold)
+            ds_train = ds.subset_obs('run', np.setdiff1d(cv_folds, fold))
+            from rsatoolbox.data.computations import average_dataset_by
+            from rsatoolbox.rdm.calc import _calc_rdm_crossnobis_single
+            m_train, _, _ = average_dataset_by(ds_train, 'cond')
+            m_test, _, _ = average_dataset_by(ds_test, 'cond')
+            noise = np.eye(N)
+            rdm_vec = _calc_rdm_crossnobis_single(m_train, m_test, noise)
+            per_fold_rdms.append(rdm_vec)
+        per_fold_rdms = np.array(per_fold_rdms)
+        n_fold_pairs = per_fold_rdms.shape[0]
+        cross_matrices = np.ndarray((n_fold_pairs, T1, T2))
+        for i_fold in range(n_fold_pairs):
+            full_fold = squareform(per_fold_rdms[i_fold, :])
+            cross_matrices[i_fold, :, :] = full_fold[0:T1, T1:T_total]
+
+    return cross_matrix, within_1, within_2, cross_matrices
 
 
 def compute_sauerbrei_least_squares_concat(
@@ -1202,7 +1337,48 @@ class DataLoader:
 
         self.trial_cutoff_times = None
 
-    
+
+    # Maps trial_filter names to pandas queries on the trials CSV.
+    # For 'fast'/'slow', the query depends on which column is present
+    # in the CSV (gain_option for CenterStart, condition for
+    # CenterStartInterleave), so they map to a list of fallbacks.
+    TRIAL_FILTER_QUERIES = {
+        'fast':           ["gain_option == 'closed-loop fast'",
+                           "condition == 'Ballistic'"],
+        'slow':           ["gain_option == 'closed-loop slow'",
+                           "condition == 'Sustained'"],
+        'fasti':          ["condition == 'Ballistic'"],
+        'slowi':          ["condition == 'Sustained'"],
+        'near':           ["target_distance == 22"],
+        'far':            ["target_distance == 54"],
+        'masked':         ["mask_condition == 'Masked'"],
+        'unmasked':       ["mask_condition == 'BaseLine'"],
+        'masked_near':    ["mask_condition == 'Masked' and target_distance == 22"],
+        'masked_far':     ["mask_condition == 'Masked' and target_distance == 54"],
+        'unmasked_near':  ["mask_condition == 'BaseLine' and target_distance == 22"],
+        'unmasked_far':   ["mask_condition == 'BaseLine' and target_distance == 54"],
+    }
+
+    def load_trial_ids_from_csv(self):
+        """Set self.trial_ids from the trials CSV using self.trial_filter,
+        without requiring firing-rate data."""
+        trials_df = pd.read_csv(self.data_path_prefix + '_trials.csv')
+        if self.trial_filter is not None:
+            queries = self.TRIAL_FILTER_QUERIES[self.trial_filter]
+            for query in queries:
+                try:
+                    filtered = trials_df.query(query)
+                    break
+                except pd.errors.UndefinedVariableError:
+                    continue
+            else:
+                raise ValueError(
+                    f"No valid query for trial_filter='{self.trial_filter}' "
+                    f"in {self.data_path_prefix}_trials.csv")
+            trials_df = filtered
+        self.trial_ids = np.array(trials_df.index)
+
+
     def load_firing_rate_data(self):
 
         firing_rates_file_name = '_'.join(map(str, [x for x in [
@@ -1295,20 +1471,21 @@ class DataLoader:
             self.cursor_vel[trial_id] = vel.where(keep_cursor, drop=True)
 
             # Filter out firing rates after the last cursor time
-            last_cursor_time = self.cursor_pos[trial_id].time.max().item()
+            if hasattr(self, 'firing_rates'):
+                last_cursor_time = self.cursor_pos[trial_id].time.max().item()
 
-            keep_fr = xr.DataArray(
-                self.firing_rates[i].time <= last_cursor_time,   # True up to & incl. last time
-                dims="time",
-                coords={"time": self.firing_rates[i].time}
-            )
+                keep_fr = xr.DataArray(
+                    self.firing_rates[i].time <= last_cursor_time,   # True up to & incl. last time
+                    dims="time",
+                    coords={"time": self.firing_rates[i].time}
+                )
 
-            self.firing_rates[i] = self.firing_rates[i].where(keep_fr, drop=True)
-            if self.input_firing_rates is not None:
-                self.input_firing_rates[i] = self.input_firing_rates[i].where(keep_fr, drop=True)
+                self.firing_rates[i] = self.firing_rates[i].where(keep_fr, drop=True)
+                if self.input_firing_rates is not None:
+                    self.input_firing_rates[i] = self.input_firing_rates[i].where(keep_fr, drop=True)
 
-            # Update self.times
-            self.times[i] = self.firing_rates[i].time.values
+                # Update self.times
+                self.times[i] = self.firing_rates[i].time.values
 
 
     def extract_cursor_states_and_times_without_alignment(self):
@@ -1550,16 +1727,37 @@ class DataLoader:
     
 
     def get_target_positions(self):
-            
+
         trials_df = pd.read_csv(self.data_path_prefix + '_trials.csv')
-    
+
         target_positions_x = trials_df['target_pos_x']
         target_positions_y = trials_df['target_pos_y']
         target_positions = np.column_stack((target_positions_x, target_positions_y))
         target_positions = target_positions[self.trial_ids]
-    
+
         return target_positions
-    
+
+
+    def get_target_indices(self):
+        trials_df = pd.read_csv(self.data_path_prefix + '_trials.csv')
+        target_indices = trials_df['target_index'].values[self.trial_ids]
+        return target_indices
+
+    def get_target_angles(self, n_bins=8):
+        """Return discretized target angle bin (0..n_bins-1) per trial.
+
+        Computes arctan2 of target position, then bins into n_bins equal
+        sectors.  Targets at the same angle but different distances get
+        the same bin, enabling cross-distance matching.
+        """
+        positions = self.get_target_positions()  # (n_trials, 2)
+        angles = np.arctan2(positions[:, 1], positions[:, 0])  # radians
+        # Bin into n_bins sectors (shift by half-bin so bin centres align
+        # with cardinal/diagonal directions)
+        bin_width = 2 * np.pi / n_bins
+        bins = np.round(angles / bin_width).astype(int) % n_bins
+        return bins
+
 
     def compute_target_overlapping_time_filters(self, target_radius=0.1):
         n_trials = len(self.cursor_states)
@@ -2173,7 +2371,6 @@ class DataLoaderDuo:
         model_results_dir_1 = os.path.join(self.session_results_dir, model_dir_name_1)
         model_results_dir_2 = os.path.join(self.session_results_dir, model_dir_name_2)
 
-        
         if not os.path.isdir(model_results_dir_1):
             if check_existence:
                 raise ValueError('Model results directory does not exist: ', model_results_dir_1)

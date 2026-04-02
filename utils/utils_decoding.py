@@ -1,5 +1,3 @@
-"""Decoding utilities (metrics + linear baselines) shared by analysis scripts."""
-
 import ipdb
 import numpy as np
 
