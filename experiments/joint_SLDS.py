@@ -1,10 +1,3 @@
-"""Cross-validated joint SLDS training on combined trial types.
-
-Each fold concatenates self and counterpart trials, fits a single SLDS, and
-then exports latent states for both groups so we can evaluate consistency
-across behaviors under matched training data.
-"""
-
 import os
 import time
 import ipdb
@@ -15,10 +8,10 @@ import numpy as np
 
 from sklearn.model_selection import KFold
 
-import scripts.config as config
-import utils.utils_processing as utils_processing
-from experiments.SLDS import SLDS
-from visualizations.vis_config import session_target_radii
+import config_SfN2024 as config
+import dynamical_systems_analyses.utils.utils_processing as utils_processing
+from SLDS import SLDS
+from vis_config import session_target_radii
 
         
 
@@ -62,8 +55,6 @@ def main(
     init_type,
     subspace_type,
     alpha):
-
-    """Fit/evaluate joint SLDS models with K-fold CV for a single session."""
 
     assert len(trial_filters) == 2
     assert data_format is None
@@ -120,7 +111,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation for both self and counterpart cohorts
+        ## K-fold cross validation
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         splits_self = list(kf.split(np.arange(n_trials_self)))
@@ -166,14 +157,14 @@ def main(
                 X_input_train = None
                 X_input_test  = None
 
-            ## Sweep through candidate state/iteration counts within the fold
+            ## Sweep through various numbers of states and iterations as well as random states
             for i_continuous_states, n_continuous_states in enumerate(ns_states):
                 for i_discrete_states, n_discrete_states in enumerate(ns_discrete_states):
                     for i_iters, n_iters in enumerate(ns_iters):
 
                         time_start = time.time()
 
-                        ## Format save path so each result encodes seed/fold/hyper-params
+                        ## Format save path
                         if model_type in ['LDS']:
 
                             ## Omit discrete states for LDS

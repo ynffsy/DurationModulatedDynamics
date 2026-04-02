@@ -1,10 +1,3 @@
-"""Full cross-speed SLDS training loop with K-fold cross-validation.
-
-Pairs each behavioral speed with its counterpart, fits SLDS models on the
-training folds, and evaluates on held-out trials to capture generalization
-across both trial splits and speed conditions.
-"""
-
 import os
 import time
 import ipdb
@@ -17,9 +10,10 @@ import pandas as pd
 
 from sklearn.model_selection import KFold
 
-import scripts.config as config
-import utils.utils_processing as utils_processing
-from experiments.SLDS import SLDS
+import config_SfN2024 as config
+import dynamical_systems_analyses.utils.utils_processing as utils_processing
+from SLDS import SLDS
+from vis_config import session_target_radii
 
         
 
@@ -64,8 +58,30 @@ def main(
     subspace_type,
     alpha):
 
-    """Fit/evaluate SLDS models for a single configuration tuple."""
+    ## Format same speed results directory
+    data_loader = utils_processing.DataLoader(
+        data_dir,
+        results_dir,
+        session_data_name,
+        unit_filter,
+        input_unit_filter,
+        window_config,
+        trial_filter)
 
+    same_speed_results_dir = data_loader.get_model_result_dir(
+        time_offset=time_offset,
+        data_format=data_format,
+        train_test='same_speed',
+        model_type=model_type,
+        dynamics_class=dynamics_class,
+        emission_class=emission_class,
+        init_type=init_type,
+        subspace_type=subspace_type,
+        alpha=alpha,
+        check_existence=True)
+
+
+    ## Format cross speed results directory and prepare data
     trial_filter_ctpt = utils_processing.trial_filter_counterparts[trial_filter]
 
     ## Load data
@@ -79,14 +95,20 @@ def main(
         [trial_filter, trial_filter_ctpt])
     
     data_loader.load_firing_rate_data()
+    data_loader.load_cursor_data()
+    data_loader.remove_target_overlap(target_radius=session_target_radii[session_data_name])
 
     ## Get paired data for self and ctpt (counterpart) trials
-    (firing_rates_self_simple,       firing_rates_ctpt_simple, 
+    (firing_rates_self_simple, firing_rates_ctpt_simple, 
      input_firing_rates_self_simple, input_firing_rates_ctpt_simple,
-     trial_ids_self,                 trial_ids_ctpt, 
-     n_trials_self,                  n_trials_ctpt,
-     trial_lengths_self,             trial_lengths_ctpt,
-     times_new_self,                 times_new_ctpt) = data_loader.reformat_firing_rate_data(data_format)
+     _, _, 
+     _, _,
+     _, _,
+     _, _) = data_loader.reformat_firing_rate_data(data_format, trial_length_filter_percentile=90)
+    
+    n_trials_self = len(firing_rates_self_simple)
+    n_trials_ctpt = len(firing_rates_ctpt_simple)
+    print('n_trials_self: ', n_trials_self, ' n_trials_ctpt: ', n_trials_ctpt)
     
     n_neurons = firing_rates_self_simple[0].shape[1]
     assert n_neurons == firing_rates_ctpt_simple[0].shape[1]
@@ -111,9 +133,6 @@ def main(
     
     print ('model_results_dir: ', model_results_dir)
 
-    ## Save runtimes and trial indices for each fold
-    runtimes = np.zeros((len(random_states), n_folds, len(ns_states), len(ns_iters)))
-
     ## Training with cross-validation
     for i_rs, random_state in enumerate(random_states):
 
@@ -123,7 +142,7 @@ def main(
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('random state: ', random_state)
 
-        ## K-fold cross validation across self vs counterpart trials
+        ## K-fold cross validation
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         splits_self = list(kf.split(np.arange(n_trials_self)))
@@ -146,9 +165,6 @@ def main(
                 else:
                     X_input_train_self = None
                     X_input_test_ctpt  = None
-
-                trial_lengths_train_self = trial_lengths_self[trial_indices_self_train]
-                trial_lengths_test_ctpt  = trial_lengths_ctpt[trial_indices_ctpt_test]
             else:
                 X_train_self = [firing_rates_self_simple[i] for i in trial_indices_self_train]
                 X_test_ctpt  = [firing_rates_ctpt_simple[i] for i in trial_indices_ctpt_test]
@@ -159,26 +175,24 @@ def main(
                 else:
                     X_input_train_self = None
                     X_input_test_ctpt  = None
-
-                trial_lengths_train_self = None
-                trial_lengths_test_ctpt  = None
             
             ## Select data based on trial filter
             X_train = X_train_self
             X_test  = X_test_ctpt
             X_input_train = X_input_train_self
             X_input_test  = X_input_test_ctpt
-            trial_lengths_train = trial_lengths_train_self
-            trial_lengths_test  = trial_lengths_test_ctpt
 
-            ## Sweep through candidate state/iteration counts for the fold
+            ## Sweep through various numbers of states and iterations as well as random states
             for i_continuous_states, n_continuous_states in enumerate(ns_states):
                 for i_discrete_states, n_discrete_states in enumerate(ns_discrete_states):
                     for i_iters, n_iters in enumerate(ns_iters):
 
+                        # if not (i_fold == 0 and n_continuous_states == 16 and n_discrete_states == 1):
+                        #     continue
+
                         time_start = time.time()
 
-                        ## Format save path that encodes hyper-parameters and fold index
+                        ## Format save path
                         if model_type in ['LDS']:
 
                             ## Omit discrete states for LDS
@@ -219,8 +233,23 @@ def main(
                             init_type,
                             subspace_type,
                             alpha)
+                        
+                        ## Read in the model parameters from the same speed model
+                        same_speed_model_save_path = os.path.join(
+                            same_speed_results_dir, 
+                            model_save_name + '.pkl')
+                        
+                        assert os.path.isfile(same_speed_model_save_path), 'Same speed model not found: ' + same_speed_model_save_path
+                        with open(same_speed_model_save_path, 'rb') as f:
+                            same_speed_model = pickle.load(f)
 
-                        neural_SLDS.fit()
+                        neural_SLDS.model = same_speed_model['model']
+                        neural_SLDS.train_elbos = same_speed_model['train_elbos']
+                        neural_SLDS.train_continuous_states = same_speed_model['train_continuous_states']
+                        neural_SLDS.train_continuous_state_covariances = same_speed_model['train_continuous_state_covariances']
+                        neural_SLDS.train_discrete_states = same_speed_model['train_discrete_states']
+
+                        ## Apply the model to the test data without training
                         neural_SLDS.transform(
                             test_emissions=X_test, 
                             test_inputs=X_input_test)
@@ -244,28 +273,6 @@ def main(
                         print('# continuous states: ', n_continuous_states, ' # discrete states: ', n_discrete_states, ' # iters: ', n_iters, ' run time: ', runtime)
 
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-
-
-    ## Save runtimes and trial indices for each fold
-    ## (Not saving the results when all models are skipped)
-    # if not np.all(runtimes == 0):
-
-    #     metadata_save_name = 'metadata_' + datetime.datetime.now().strftime('%m%d%Y-%H%M%S')    
-    #     metadata_save_path = os.path.join(model_results_dir, metadata_save_name + '.pkl')
-
-    #     with open(metadata_save_path, 'wb') as f:
-    #         pickle.dump({
-    #             'n_neurons'     : n_neurons,
-    #             'n_trials'      : n_trials_self,
-    #             'random_states' : random_states,
-    #             'n_folds'       : n_folds,
-    #             'ns_states'     : ns_states,
-    #             'ns_iters'      : ns_iters,
-    #             'alpha'         : alpha,
-    #             'data_format'   : data_format,
-    #             'runtimes'      : runtimes,
-    #             'fold_indices'  : fold_indices,
-    #         }, f)
 
 
 

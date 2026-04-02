@@ -1,5 +1,3 @@
-"""Lightweight wrapper around `ssm` models used throughout the pipeline."""
-
 import ipdb
 
 import numpy as np
@@ -10,7 +8,6 @@ import autograd.numpy.random as npr
 
 
 class SLDS:
-    """Thin wrapper around the `ssm` package with convenience utilities."""
 
     def __init__(
         self, 
@@ -54,13 +51,12 @@ class SLDS:
         self.emission_class      = emission_class
         self.emission_optimizer  = 'lbfgs'
 
-        # Decide whether we restrict emissions to a single shared subspace
         if self.subspace_type == 'single' or self.subspace_type is None:
             self.single_subspace = True
         elif self.subspace_type == 'multi':
             self.single_subspace = False
         else:
-            ValueError(f"[SLDS.__init__()] Invalid subspace type '{self.subspace_type}' found")
+            raise ValueError(f"[SLDS.__init__()] Invalid subspace type '{self.subspace_type}' found")
 
         ## Use the default emission class if None
         if self.emission_class is None:
@@ -70,7 +66,6 @@ class SLDS:
         if self.emission_class in ['poisson', 'poisson_orthog']:
             self.train_emissions = [np.array(emission).astype(int) for emission in self.train_emissions]
 
-        # Instantiate the requested `ssm` object by selecting the proper topology
         if model_type == 'SLDS':
             self.model = ssm.SLDS(
                 N=n_neurons, 
@@ -140,7 +135,7 @@ class SLDS:
                 emission_kwargs=dict(link='softplus'))
 
         else:
-            ValueError(f"[SSM.__init__()] Invalid model type '{model_type}' found")
+            raise ValueError(f"[SSM.__init__()] Invalid model type '{model_type}' found")
         
         ## TODO: Enable inputs and initializations
 
@@ -153,7 +148,6 @@ class SLDS:
             # times varies by trial; # neurons stays constant.
         """
 
-        # Support the same initialization strategies used throughout the scripts
         if self.init_type == 'ARHMM':
             self.train_elbos, self.train_posterior = self.model.fit(
                 self.train_emissions, 
@@ -203,7 +197,7 @@ class SLDS:
                 num_init_iters=self.n_iters)
         
         else:
-            ValueError(f"[SSM.fit()] Invalid init type '{self.init_type}' found")
+            raise ValueError(f"[SSM.fit()] Invalid init type '{self.init_type}' found")
 
         ## Obtain the continuous latent states
         self.train_continuous_states = self.train_posterior.mean_continuous_states
@@ -248,7 +242,7 @@ class SLDS:
             elif isinstance(data, np.ndarray) and data.ndim == 2:
                 return [data]
             else:
-                ValueError(f"[SLDS.transform().reformat_data()] Invalid datas shape found")
+                raise ValueError(f"[SLDS.transform().reformat_data()] Invalid datas shape found")
 
         if test_emissions is None:
             emissions = self.train_emissions

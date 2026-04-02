@@ -1,14 +1,7 @@
-"""Cross-validated SLDS training for a single speed condition.
-
-Splits trials within one behavioral filter into K folds, fits SLDS models
-for each hyper-parameter combination, and saves latents for train/test
-segments across folds.
-"""
-
 import os
 import time
-import ipdb
 import pickle
+import traceback
 import datetime
 import itertools
 
@@ -17,10 +10,10 @@ import pandas as pd
 
 from sklearn.model_selection import KFold
 
-import scripts.config as config
-import utils.utils_processing as utils_processing
-from experiments.SLDS import SLDS
-from visualizations.vis_config import session_target_radii
+import config_SfN2024 as config
+import dynamical_systems_analyses.utils.utils_processing as utils_processing
+from SLDS import SLDS
+from vis_config import session_target_radii
 
 
 
@@ -64,8 +57,6 @@ def main(
     init_type,
     subspace_type,
     alpha):
-
-    """Run K-fold SLDS training for one session/condition pairing."""
     
     ## Load data
     data_loader = utils_processing.DataLoader(
@@ -130,7 +121,7 @@ def main(
         # fold_indices = np.random.randint(n_folds, size=n_trials)
         # print(fold_indices)
 
-        ## K-fold cross validation over all trials within the filter
+        ## K-fold cross validation
         kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
         # for i_fold in range(n_folds):
@@ -161,14 +152,14 @@ def main(
                     X_input_train = None
                     X_input_test  = None
 
-            ## Sweep through all requested state and iteration counts
+            ## Sweep through various numbers of states and iterations as well as random states
             for i_continuous_states, n_continuous_states in enumerate(ns_states):
                 for i_discrete_states, n_discrete_states in enumerate(ns_discrete_states):
                     for i_iters, n_iters in enumerate(ns_iters):
 
                         time_start = time.time()
 
-                        ## Format save path encoding seed/fold/state counts
+                        ## Format save path
                         if model_type in ['LDS']:
 
                             ## Omit discrete states for LDS
@@ -192,47 +183,51 @@ def main(
                             print('s' + str(n_continuous_states) + 'i' + str(n_iters) + ' model already exists. Skipping...')
                             continue
 
-                        ## Use SLDS to reduce the dimensionality of firing rate data                    
-                        neural_SLDS = SLDS(
-                            X_train,
-                            X_input_train,
-                            n_neurons,
-                            n_input_neurons,
-                            data_format,
-                            random_state,
-                            n_continuous_states,
-                            n_discrete_states,
-                            n_iters,
-                            model_type,
-                            dynamics_class,
-                            emission_class,
-                            init_type,
-                            subspace_type,
-                            alpha)
+                        ## Use SLDS to reduce the dimensionality of firing rate data
+                        try:
+                            neural_SLDS = SLDS(
+                                X_train,
+                                X_input_train,
+                                n_neurons,
+                                n_input_neurons,
+                                data_format,
+                                random_state,
+                                n_continuous_states,
+                                n_discrete_states,
+                                n_iters,
+                                model_type,
+                                dynamics_class,
+                                emission_class,
+                                init_type,
+                                subspace_type,
+                                alpha)
 
-                        neural_SLDS.fit()
-                        neural_SLDS.transform(
-                            test_emissions=X_test, 
-                            test_inputs=X_input_test)
+                            neural_SLDS.fit()
+                            neural_SLDS.transform(
+                                test_emissions=X_test,
+                                test_inputs=X_input_test)
 
-                        with open(res_save_path , 'wb') as f:
-                            pickle.dump({
-                                'train_elbos'                        : neural_SLDS.train_elbos,
-                                'train_continuous_states'            : neural_SLDS.train_continuous_states,
-                                'train_continuous_state_covariances' : neural_SLDS.train_continuous_state_covariances,
-                                'train_discrete_states'              : neural_SLDS.train_discrete_states,
-                                'test_elbos'                         : neural_SLDS.test_elbos,
-                                'test_continuous_states'             : neural_SLDS.test_continuous_states,
-                                'test_continuous_state_covariances'  : neural_SLDS.test_continuous_state_covariances,
-                                'test_discrete_states'               : neural_SLDS.test_discrete_states,
-                                'model'                              : neural_SLDS.model,
-                            }, f)
+                            with open(res_save_path , 'wb') as f:
+                                pickle.dump({
+                                    'train_elbos'                        : neural_SLDS.train_elbos,
+                                    'train_continuous_states'            : neural_SLDS.train_continuous_states,
+                                    'train_continuous_state_covariances' : neural_SLDS.train_continuous_state_covariances,
+                                    'train_discrete_states'              : neural_SLDS.train_discrete_states,
+                                    'test_elbos'                         : neural_SLDS.test_elbos,
+                                    'test_continuous_states'             : neural_SLDS.test_continuous_states,
+                                    'test_continuous_state_covariances'  : neural_SLDS.test_continuous_state_covariances,
+                                    'test_discrete_states'               : neural_SLDS.test_discrete_states,
+                                    'model'                              : neural_SLDS.model,
+                                }, f)
 
-                        time_end = time.time()
-                        runtime = time_end - time_start
-                        # runtimes[i_rs, i_fold, i_states, i_iters] = runtime
+                            time_end = time.time()
+                            runtime = time_end - time_start
+                            print('# continuous states: ', n_continuous_states, ' # discrete states: ', n_discrete_states, ' # iters: ', n_iters, ' run time: ', runtime)
 
-                        print('# continuous states: ', n_continuous_states, ' # discrete states: ', n_discrete_states, ' # iters: ', n_iters, ' run time: ', runtime)
+                        except Exception as e:
+                            print(f'FAILED s{n_continuous_states} d{n_discrete_states} i{n_iters}: {e}')
+                            traceback.print_exc()
+                            continue
 
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 

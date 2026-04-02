@@ -1,10 +1,3 @@
-"""Fit SLDS models to a single trial type without cross-validation.
-
-This entry point does a straight sweep over latent dimensionalities for a
-given behavioral condition, saving the train/test posteriors for downstream
-decoding or visualization.
-"""
-
 import os
 import time
 import ipdb
@@ -13,10 +6,10 @@ import itertools
 
 import numpy as np
 
-import scripts.config as config
-import utils.utils_processing as utils_processing
-from experiments.SLDS import SLDS
-from visualizations.vis_config import session_target_radii
+import config_SfN2024 as config
+import dynamical_systems_analyses.utils.utils_processing as utils_processing
+from SLDS import SLDS
+from vis_config import session_target_radii
 
 
 
@@ -60,8 +53,6 @@ def main(
     init_type,
     subspace_type,
     alpha):
-
-    """Train a single SLDS sweep for one session+trial_filter."""
     
     ## Load data
     data_loader = utils_processing.DataLoader(
@@ -125,7 +116,7 @@ def main(
 
                     time_start = time.time()
                     
-                    ## Format save path for this seed/state/iter combination
+                    ## Format save path
                     if model_type in ['LDS', 'pLDS']:
 
                         ## Omit discrete states for LDS
