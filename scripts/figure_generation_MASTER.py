@@ -694,7 +694,64 @@ if __name__ == '__main__':
     # Subject name mapping for x-axis labels
     subject_display = {'N1': 'JJ', 'N2': 'RD'}
 
-    all_decoding_results = []
+    # all_decoding_results = []
+
+    # for session_key in session_info.keys():
+    #     session_data_names = session_info[session_key]['session_data_names']
+    #     unit_filters       = session_info[session_key]['unit_filters']
+    #     unit_filters_short = session_info[session_key]['unit_filters_short']
+    #     window_configs     = session_info[session_key]['window_configs']
+    #     trial_filters      = session_info[session_key]['trial_filters']
+    #     subject_short      = subject_display[session_info[session_key]['subject']]
+    #     task_short         = session_info[session_key]['task_short']
+
+    #     for unit_filter, unit_short, window_config in zip(
+    #             unit_filters, unit_filters_short, window_configs):
+
+    #         # Decoding (returns per-trial correctness + angular errors)
+    #         trial_correct, angular_errors, results_df = \
+    #             statistics_paper.steady_phase_target_decoding(
+    #                 session_data_names,
+    #                 unit_filter,
+    #                 window_config,
+    #                 trial_filters[1],  # slow / far condition
+    #                 steady_window_ms=300,
+    #                 n_cv_folds=5)
+
+    #         label = f'{subject_short} {unit_short} {task_short}'
+    #         chance = 1.0 / results_df['n_targets'].iloc[0] if len(results_df) > 0 else 0.125
+    #         chance_angular_error = results_df['chance_angular_error'].iloc[0] if len(results_df) > 0 else 90.0
+    #         all_decoding_results.append({
+    #             'label': label,
+    #             'trial_correct': trial_correct,
+    #             'angular_errors': angular_errors,
+    #             'chance': chance,
+    #             'chance_angular_error': chance_angular_error,
+    #         })
+
+    #         # PCA trajectories and progress-to-target — session by session
+    #         for session_data_name in session_data_names:
+    #             statistics_paper.steady_phase_pca_trajectories(
+    #                 session_data_name,
+    #                 unit_filter,
+    #                 window_config,
+    #                 trial_filters[1],
+    #                 steady_window_ms=300)
+
+    #             # statistics_paper.steady_phase_progress_to_target(
+    #             #     session_data_name,
+    #             #     unit_filter,
+    #             #     window_config,
+    #             #     trial_filters[1],
+    #             #     steady_window_ms=300)
+
+    # # Summary bar plot across all subjects/tasks
+    # statistics_paper.plot_steady_phase_decoding_summary(
+    #     all_decoding_results,
+    #     steady_window_ms=300)
+
+
+    #### Per-time inference heatmaps ####
 
     for session_key in session_info.keys():
         session_data_names = session_info[session_key]['session_data_names']
@@ -702,53 +759,249 @@ if __name__ == '__main__':
         unit_filters_short = session_info[session_key]['unit_filters_short']
         window_configs     = session_info[session_key]['window_configs']
         trial_filters      = session_info[session_key]['trial_filters']
-        subject_short      = subject_display[session_info[session_key]['subject']]
-        task_short         = session_info[session_key]['task_short']
+        visual_delay_times = session_info[session_key]['visual_delay_times']
+        peak_times         = session_info[session_key]['peak_times']
 
-        for unit_filter, unit_short, window_config in zip(
-                unit_filters, unit_filters_short, window_configs):
+        for (unit_filter, unit_short, window_config,
+             visual_delay_time, peak_time) in zip(
+                unit_filters, unit_filters_short, window_configs,
+                visual_delay_times, peak_times):
 
-            # Decoding (returns per-trial correctness + angular errors)
-            trial_correct, angular_errors, results_df = \
-                statistics_paper.steady_phase_target_decoding(
-                    session_data_names,
-                    unit_filter,
-                    window_config,
-                    trial_filters[1],  # slow / far condition
-                    steady_window_ms=300,
-                    n_cv_folds=5)
+            vis_paper_metrics.plot_per_time_inference_results_avg_session(
+                unit_filter,
+                input_unit_filter,
+                data_format,
+                dynamics_class,
+                emission_class,
+                init_type,
+                subspace_type,
+                alpha,
+                inference_type='forecast',
+                truncate_percentile=10,
+                visual_delay_time=visual_delay_time,
+                peak_time=peak_time,
+                discrete_state_idx=0,
+                session_data_names=session_data_names,
+                results_dir=config.results_dir,
+                vis_dir=config.vis_dir,
+                window_config=window_config,
+                time_offset=config.time_offset,
+                trial_filters=trial_filters,
+                ns_states=config.ns_states,
+                random_states=config.random_states,
+                n_folds=config.n_folds,
+                ns_discrete_states=config.ns_discrete_states,
+                ns_iters=config.ns_iters)
 
-            label = f'{subject_short} {unit_short} {task_short}'
-            chance = 1.0 / results_df['n_targets'].iloc[0] if len(results_df) > 0 else 0.125
-            chance_angular_error = results_df['chance_angular_error'].iloc[0] if len(results_df) > 0 else 90.0
-            all_decoding_results.append({
-                'label': label,
-                'trial_correct': trial_correct,
-                'angular_errors': angular_errors,
-                'chance': chance,
-                'chance_angular_error': chance_angular_error,
-            })
 
-            # PCA trajectories and progress-to-target — session by session
-            for session_data_name in session_data_names:
-                statistics_paper.steady_phase_pca_trajectories(
-                    session_data_name,
-                    unit_filter,
-                    window_config,
-                    trial_filters[1],
-                    steady_window_ms=300)
+    #### LDS phase inference: transient vs steady (all combos) ####
 
-                # statistics_paper.steady_phase_progress_to_target(
-                #     session_data_name,
-                #     unit_filter,
-                #     window_config,
-                #     trial_filters[1],
-                #     steady_window_ms=300)
+    # all_phase_results = []
 
-    # Summary bar plot across all subjects/tasks
-    statistics_paper.plot_steady_phase_decoding_summary(
-        all_decoding_results,
-        steady_window_ms=300)
+    # for session_key in session_info.keys():
+    #     session_data_names = session_info[session_key]['session_data_names']
+    #     unit_filters       = session_info[session_key]['unit_filters']
+    #     unit_filters_short = session_info[session_key]['unit_filters_short']
+    #     window_configs     = session_info[session_key]['window_configs']
+    #     trial_filters      = session_info[session_key]['trial_filters']
+    #     visual_delay_times = session_info[session_key]['visual_delay_times']
+    #     peak_times         = session_info[session_key]['peak_times']
+    #     subject_short      = subject_display[session_info[session_key]['subject']]
+    #     task_short         = session_info[session_key]['task_short']
+    #     task_name          = session_info[session_key]['task']
+
+    #     for (unit_filter, unit_short, window_config,
+    #          visual_delay_time, peak_time) in zip(
+    #             unit_filters, unit_filters_short, window_configs,
+    #             visual_delay_times, peak_times):
+
+    #         # Per-latent-dim figure (one per combo)
+    #         phase_r2 = vis_paper_metrics.plot_lds_phase_inference_results_avg_session(
+    #             unit_filter,
+    #             input_unit_filter,
+    #             data_format,
+    #             dynamics_class,
+    #             emission_class,
+    #             init_type,
+    #             subspace_type,
+    #             alpha,
+    #             inference_type='forecast',
+    #             truncate_percentile=10,
+    #             visual_delay_time=visual_delay_time,
+    #             peak_time=peak_time,
+    #             session_data_names=session_data_names,
+    #             results_dir=config.results_dir,
+    #             vis_dir=config.vis_dir,
+    #             window_config=window_config,
+    #             time_offset=config.time_offset,
+    #             trial_filters=trial_filters,
+    #             ns_states=config.ns_states,
+    #             random_states=config.random_states,
+    #             n_folds=config.n_folds,
+    #             ns_discrete_states=config.ns_discrete_states,
+    #             ns_iters=config.ns_iters,
+    #             plot_pooled=False)
+
+    #         # Pool across latent states for summary
+    #         pooled = {}
+    #         for tf in trial_filters:
+    #             pooled[tf] = {phase: [] for phase in range(2)}
+    #             for ns in config.ns_states:
+    #                 for phase in range(2):
+    #                     pooled[tf][phase].extend(
+    #                         phase_r2[tf]['same_minus_cross'][ns][phase])
+
+    #         label = f'{subject_short} {unit_short} {task_short}'
+    #         all_phase_results.append({
+    #             'label': label,
+    #             'task': task_name,
+    #             'trial_filters': trial_filters,
+    #             'pooled': pooled,
+    #         })
+
+    # # ── Pooled summary figure across all combos ──
+
+    # trial_filter_name_conversion = {
+    #     'fast': 'Ballistic', 'slow': 'Sustained',
+    #     'near': 'Near', 'far': 'Far',
+    # }
+
+    # def _style_bp(bp, color):
+    #     bp['boxes'][0].set(facecolor=color, linewidth=0, alpha=0.8)
+    #     for line in bp['whiskers'] + bp['caps']:
+    #         line.set(color='black', linewidth=0.25)
+    #     for line in bp['medians']:
+    #         line.set(color='black', linewidth=0.5)
+
+    # def _sig_stars(p):
+    #     if p < 0.001:
+    #         return '***'
+    #     elif p < 0.01:
+    #         return '**'
+    #     elif p < 0.05:
+    #         return '*'
+    #     return 'n.s.'
+
+    # n_combos = len(all_phase_results)
+    # fig_pool, ax_pool = plt.subplots(
+    #     figsize=(90 * mm, 40 * mm))
+
+    # box_w = 0.15
+    # offsets = [-0.3, -0.1, 0.1, 0.3]  # tf0_trans, tf0_steady, tf1_trans, tf1_steady
+
+    # bracket_data = []
+
+    # print(f'\n{"="*70}')
+    # print(f'Pooled LDS phase analysis: all combos')
+    # print(f'{"="*70}')
+
+    # for i_combo, result in enumerate(all_phase_results):
+    #     task = result['task']
+    #     tfs = result['trial_filters']
+    #     pooled = result['pooled']
+
+    #     for i_tf, tf in enumerate(tfs):
+    #         tf_colors = dsc[task][tf]
+    #         trans_vals = pooled[tf][0]
+    #         steady_vals = pooled[tf][1]
+
+    #         pos_trans = i_combo + offsets[i_tf * 2]
+    #         pos_steady = i_combo + offsets[i_tf * 2 + 1]
+
+    #         if len(trans_vals) > 0:
+    #             bp_t = ax_pool.boxplot(
+    #                 trans_vals, positions=[pos_trans],
+    #                 widths=box_w, whis=[0, 100], showfliers=False,
+    #                 patch_artist=True, manage_ticks=False)
+    #             _style_bp(bp_t, tf_colors[0])
+
+    #         if len(steady_vals) > 0:
+    #             bp_s = ax_pool.boxplot(
+    #                 steady_vals, positions=[pos_steady],
+    #                 widths=box_w, whis=[0, 100], showfliers=False,
+    #                 patch_artist=True, manage_ticks=False)
+    #             _style_bp(bp_s, tf_colors[1])
+
+    #         # Collect bracket info
+    #         trans_arr = np.array(trans_vals)
+    #         steady_arr = np.array(steady_vals)
+    #         if len(trans_arr) >= 2 and len(steady_arr) >= 2:
+    #             stat, p_val = mannwhitneyu(
+    #                 trans_arr, steady_arr, alternative='two-sided')
+    #             n1, n2 = len(trans_arr), len(steady_arr)
+    #             r_rb = 1 - 2 * stat / (n1 * n2)
+
+    #             cond_label = trial_filter_name_conversion.get(tf, tf)
+    #             print(f'{result["label"]} {cond_label}: U={stat:.0f}, '
+    #                   f'p={p_val:.3g}, r={r_rb:.3f}, '
+    #                   f'n_trans={n1}, n_steady={n2}, '
+    #                   f'med_trans={np.median(trans_arr):.4f}, '
+    #                   f'med_steady={np.median(steady_arr):.4f}')
+
+    #             bracket_data.append({
+    #                 'x_left': pos_trans,
+    #                 'x_right': pos_steady,
+    #                 'bar_top': max(np.max(trans_arr), np.max(steady_arr)),
+    #                 'p_val': p_val,
+    #                 'r_rb': r_rb,
+    #             })
+
+    # ax_pool.axhline(0, color='black', lw=0.5, ls='--', alpha=0.5)
+    # ax_pool.set_xticks(range(n_combos))
+    # ax_pool.set_xticklabels(
+    #     [r['label'] for r in all_phase_results], rotation=30, ha='right')
+    # # ax_pool.set_ylabel(r'$\Delta$R$^2$ (same $-$ cross)')
+    # ax_pool.spines[['right', 'top']].set_visible(False)
+
+    # # Symlog y-axis: linear within ±0.1, log-compressed beyond
+    # ax_pool.set_yscale('symlog', linthresh=0.1)
+    # ax_pool.yaxis.set_major_formatter(
+    #     FuncFormatter(lambda v, _: f'{v:g}'))
+    # # Drop 0 tick — the dashed line marks it; avoids overlap with ±0.1 ticks
+    # fig_pool.canvas.draw()  # finalize ticks before filtering
+    # yticks = [t for t in ax_pool.get_yticks() if t != 0]
+    # ax_pool.set_yticks(yticks)
+
+    # # Significance brackets (display-space offsets for symlog compatibility)
+    # fig_pool.canvas.draw()  # finalize transforms
+
+    # for bd in bracket_data:
+    #     trans = ax_pool.transData
+    #     inv = trans.inverted()
+
+    #     disp_top = trans.transform((0, bd['bar_top']))[1]
+    #     bracket_disp = disp_top + 8   # 8 px above data max
+    #     tip_disp = bracket_disp - 3   # 3 px tip height
+    #     text_disp = bracket_disp + 2  # 2 px above bracket
+
+    #     bracket_y = inv.transform((0, bracket_disp))[1]
+    #     tip_y = inv.transform((0, tip_disp))[1]
+    #     text_y = inv.transform((0, text_disp))[1]
+
+    #     ax_pool.plot(
+    #         [bd['x_left'], bd['x_left'], bd['x_right'], bd['x_right']],
+    #         [tip_y, bracket_y, bracket_y, tip_y],
+    #         color='black', linewidth=0.5, clip_on=False)
+
+    #     stars = _sig_stars(bd['p_val'])
+    #     if stars == 'n.s.':
+    #         label_text = 'n.s.'
+    #     else:
+    #         label_text = f'r={bd["r_rb"]:.2f}\n{stars}'
+    #         label_text = f'{bd["r_rb"]:.2f}\n{stars}'
+    #     ax_pool.text(
+    #         (bd['x_left'] + bd['x_right']) / 2, text_y,
+    #         label_text, ha='center', va='bottom', fontsize=5)
+
+    # fig_pool.tight_layout()
+
+    # save_path_pool = os.path.join(
+    #     config.vis_dir,
+    #     'all_combos_phase_inference_LDS_forecast_phase_delta_r2_pooled.pdf')
+    # fig_pool.savefig(
+    #     save_path_pool, dpi=600, transparent=True,
+    #     bbox_inches='tight', format='pdf')
+    # plt.close(fig_pool)
 
 
     #### Skew-symmetric ratio of dynamics matrix A ####

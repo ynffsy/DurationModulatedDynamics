@@ -347,12 +347,13 @@ def fill_emissions(emissions):
 
 def filter_by_trial_length_percentile(emissions, percentile, *, make_copies=True):
     """
-    Keep trials whose length is at or above the (100 − percentile)th percentile.
+    Keep the longest p % of trials, dropping the shortest (100 − p) %.
 
     Parameters
     ----------
     emissions   : list of (T_i, N) ndarrays
-    percentile  : 0 < p ≤ 100 → drop the shortest p % of trials.
+    percentile  : 0 < p ≤ 100 → keep the longest p % of trials.
+                  e.g. percentile=90 drops the shortest 10 %.
                   If None, return everything unchanged.
     make_copies : If True, return copies of the kept arrays so that later
                   in-place edits won’t touch the originals.

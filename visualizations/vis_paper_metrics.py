@@ -24,6 +24,7 @@ from visualizations.vis_config import *
 data_dir           = config.data_dir
 results_dir        = config.results_dir
 vis_dir            = config.vis_dir
+session_data_dict  = config.session_data_dict
 session_data_names = config.session_data_names
 
 unit_filters       = config.unit_filters
@@ -238,7 +239,8 @@ def plot_decoding_results_avg_session(
     subspace_type,
     alpha,
     train_or_test='test',
-    form='heatmap'):
+    form='heatmap',
+    show_tick_labels=True):
 
     print('Plotting decoding results...')
 
@@ -342,8 +344,7 @@ def plot_decoding_results_avg_session(
     decoding_fast_se = rSLDS_decoding_fast_all_se
 
     decoding_results = {
-        'slow':
-        # 'far':
+        trial_filters[1]:
             {
                 'rSLDS_mean': rSLDS_decoding_slow_all_mean,
                 # 'PCA_mean': PCA_decoding_slow_all_mean,
@@ -352,8 +353,7 @@ def plot_decoding_results_avg_session(
                 # 'PCA_se': PCA_decoding_slow_all_se,
                 'all_se': decoding_slow_se,
             },
-        'fast':
-        # 'near':
+        trial_filters[0]:
             {
                 'rSLDS_mean': rSLDS_decoding_fast_all_mean,
                 # 'PCA_mean': PCA_decoding_fast_all_mean,
@@ -441,13 +441,16 @@ def plot_decoding_results_avg_session(
                     edgecolors='none',
                 )
 
-            axs[i_tf].set_xticks(ns_states)
-            tick_labels = [str(x) if i % 2 == 0 else '' for i, x in enumerate(ns_states)]
+            xticks_range = [s for s in ns_states if 2 <= s <= 20]
+            axs[i_tf].set_xticks(xticks_range)
+            axs[i_tf].set_yticks([25, 50, 75])
 
-            ## Set tick labels
-            axs[i_tf].set_xticklabels(tick_labels)
-            # axs[i_tf].set_xticklabels([])
-            # axs[i_tf].set_yticklabels([])
+            if show_tick_labels:
+                tick_labels = [str(x) if i % 2 == 0 else '' for i, x in enumerate(xticks_range)]
+                axs[i_tf].set_xticklabels(tick_labels)
+            else:
+                axs[i_tf].set_xticklabels([])
+                axs[i_tf].set_yticklabels([])
 
             axs[i_tf].set_ylim(vmin, vmax)
             # axs[i_tf].set_xlabel('Number of continuous states', fontsize=5)
@@ -618,7 +621,7 @@ def plot_state_timecourses(
             ax.fill_between(t_axis,
                             means[k] - sems[k],
                             means[k] + sems[k],
-                            alpha=0.3)                 # default colour’s alpha only
+                            alpha=0.3)                 # default colour's alpha only
 
     ax.set_xlabel("time (s)")
     ax.set_ylabel(ylabel)
@@ -780,16 +783,14 @@ def plot_per_time_decoding_results_avg_session(
         n_trials_fast_cumulative += n_trials_fast
 
     decoding_results = {
-        'fast':
-        # 'near':
+        trial_filters[0]:
             {
                 'LDS_mean_same_speed': rSLDS_same_speed_decoding_fast_all_,
                 'LDS_mean_cross_speed': rSLDS_cross_speed_decoding_fast_all_,
                 # 'LDS_mean_same_speed': rSLDS_same_speed_decoding_fast_all[0],
                 # 'LDS_mean_cross_speed': rSLDS_cross_speed_decoding_fast_all[0],
             },
-        'slow':
-        # 'far':
+        trial_filters[1]:
             {
                 'LDS_mean_same_speed': rSLDS_same_speed_decoding_slow_all_,
                 'LDS_mean_cross_speed': rSLDS_cross_speed_decoding_slow_all_,
@@ -1017,6 +1018,8 @@ def plot_inference_results_avg_session(
         # inference_baseline = np.load(os.path.join(session_results_dir, inference_baseline_name + '.npz'))
         # r2_forecast_baseline_slow = inference_baseline['r2_forecast_baseline_slow']
         # r2_forecast_baseline_fast = inference_baseline['r2_forecast_baseline_fast']
+        ipdb.set_trace()
+
         ## Take the last n_iters, then add to all sessions
         rSLDS_r2_forecast_slow = rSLDS_r2_forecast_slow[..., -1]
         rSLDS_r2_forecast_fast = rSLDS_r2_forecast_fast[..., -1]
@@ -1048,14 +1051,12 @@ def plot_inference_results_avg_session(
 
 
     inference_results = {
-        'slow':
-        # 'far':
+        trial_filters[1]:
             {
                 'mean': rSLDS_r2_forecast_slow_all_mean,
                 'se': rSLDS_r2_forecast_slow_all_se,
             },
-        'fast':
-        # 'near':
+        trial_filters[0]:
             {
                 'mean': rSLDS_r2_forecast_fast_all_mean,
                 'se': rSLDS_r2_forecast_fast_all_se,
@@ -1226,9 +1227,60 @@ def plot_per_time_inference_results_avg_session(
     alpha,
     inference_type='forecast',
     truncate_percentile=10,
-    visual_delay_time=0):
+    visual_delay_time=0,
+    peak_time=None,
+    discrete_state_idx=0,
+    session_data_names=None,
+    results_dir=None,
+    vis_dir=None,
+    window_config=None,
+    time_offset=None,
+    trial_filters=None,
+    ns_states=None,
+    random_states=None,
+    n_folds=None,
+    ns_discrete_states=None,
+    ns_iters=None):
+    """
+    Parameters
+    ----------
+    discrete_state_idx : int
+        Index into ns_discrete_states to select the discrete-state count.
+        0 → LDS (K=1), 1 → rSLDS (K=2), etc.
+    """
 
-    print('Plotting inference results...')
+    # Resolve overridable config parameters
+    if session_data_names is None:
+        session_data_names = config.session_data_names
+    if results_dir is None:
+        results_dir = config.results_dir
+    if vis_dir is None:
+        vis_dir = config.vis_dir
+    if window_config is None:
+        window_config = config.window_config
+    if time_offset is None:
+        time_offset = config.time_offset
+    if trial_filters is None:
+        trial_filters = config.trial_filters
+    if ns_states is None:
+        ns_states = config.ns_states
+    if random_states is None:
+        random_states = config.random_states
+    if n_folds is None:
+        n_folds = config.n_folds
+    if ns_discrete_states is None:
+        ns_discrete_states = config.ns_discrete_states
+    if ns_iters is None:
+        ns_iters = config.ns_iters
+
+    # npz keys always use fast/slow even for RadialGrid (near/far)
+    _tf_data_key_map = {'near': 'fast', 'far': 'slow'}
+    tf0_data = _tf_data_key_map.get(trial_filters[0], trial_filters[0])
+    tf1_data = _tf_data_key_map.get(trial_filters[1], trial_filters[1])
+
+    n_discrete = ns_discrete_states[discrete_state_idx]
+    model_label = 'LDS' if n_discrete == 1 else f'rSLDS (K={n_discrete})'
+    print(f'Plotting inference results for {model_label}...')
 
     rSLDS_same_speed_inference_name = '_'.join(map(str, [x for x in [
         'inference',
@@ -1261,8 +1313,8 @@ def plot_per_time_inference_results_avg_session(
         None,
         data_format,
         trial_filters,
-        # 'cross_speed',
-        'same_speed',
+        'cross_speed',
+        # 'same_speed',
         random_states,
         n_folds,
         ns_states,
@@ -1289,27 +1341,28 @@ def plot_per_time_inference_results_avg_session(
         session_results_dir = os.path.join(results_dir, session_data_name)
 
         rSLDS_same_speed_inference = np.load(os.path.join(session_results_dir, rSLDS_same_speed_inference_name + '.npz'))
-        rSLDS_same_speed_inference_slow = rSLDS_same_speed_inference[inference_name + '_slow_test_per_time']
-        rSLDS_same_speed_inference_fast = rSLDS_same_speed_inference[inference_name + '_fast_test_per_time']
-        trial_lengths_slow_same_speed = rSLDS_same_speed_inference['trial_lengths_slow'] - 1
-        trial_lengths_fast_same_speed = rSLDS_same_speed_inference['trial_lengths_fast'] - 1
+        rSLDS_same_speed_inference_slow = rSLDS_same_speed_inference[inference_name + f'_{tf1_data}_test_per_time']
+        rSLDS_same_speed_inference_fast = rSLDS_same_speed_inference[inference_name + f'_{tf0_data}_test_per_time']
+        trial_lengths_slow_same_speed = rSLDS_same_speed_inference[f'trial_lengths_{tf1_data}'] - 1
+        trial_lengths_fast_same_speed = rSLDS_same_speed_inference[f'trial_lengths_{tf0_data}'] - 1
 
         rSLDS_cross_speed_inference = np.load(os.path.join(session_results_dir, rSLDS_cross_speed_inference_name + '.npz'))
-        rSLDS_cross_speed_inference_slow = rSLDS_cross_speed_inference[inference_name + '_slow_test_per_time']
-        rSLDS_cross_speed_inference_fast = rSLDS_cross_speed_inference[inference_name + '_fast_test_per_time']
-        trial_lengths_slow_cross_speed = rSLDS_cross_speed_inference['trial_lengths_slow'] - 1
-        trial_lengths_fast_cross_speed = rSLDS_cross_speed_inference['trial_lengths_fast'] - 1
+        rSLDS_cross_speed_inference_slow = rSLDS_cross_speed_inference[inference_name + f'_{tf1_data}_test_per_time']
+        rSLDS_cross_speed_inference_fast = rSLDS_cross_speed_inference[inference_name + f'_{tf0_data}_test_per_time']
+        trial_lengths_slow_cross_speed = rSLDS_cross_speed_inference[f'trial_lengths_{tf1_data}'] - 1
+        trial_lengths_fast_cross_speed = rSLDS_cross_speed_inference[f'trial_lengths_{tf0_data}'] - 1
 
         assert np.array_equal(trial_lengths_slow_same_speed, trial_lengths_slow_cross_speed)
         assert np.array_equal(trial_lengths_fast_same_speed, trial_lengths_fast_cross_speed)
         trial_lengths_slow = trial_lengths_slow_same_speed
         trial_lengths_fast = trial_lengths_fast_same_speed
 
-        # Take the first discrete state (LDS) and last n_iters
-        rSLDS_same_speed_inference_slow = rSLDS_same_speed_inference_slow[:, :, 0, -1]
-        rSLDS_same_speed_inference_fast = rSLDS_same_speed_inference_fast[:, :, 0, -1]
-        rSLDS_cross_speed_inference_slow = rSLDS_cross_speed_inference_slow[:, :, 0, -1]
-        rSLDS_cross_speed_inference_fast = rSLDS_cross_speed_inference_fast[:, :, 0, -1]
+        # Select discrete state and last iteration
+        # discrete_state_idx=0 → LDS (K=1), 1 → rSLDS (K=2), etc.
+        rSLDS_same_speed_inference_slow = rSLDS_same_speed_inference_slow[:, :, discrete_state_idx, -1]
+        rSLDS_same_speed_inference_fast = rSLDS_same_speed_inference_fast[:, :, discrete_state_idx, -1]
+        rSLDS_cross_speed_inference_slow = rSLDS_cross_speed_inference_slow[:, :, discrete_state_idx, -1]
+        rSLDS_cross_speed_inference_fast = rSLDS_cross_speed_inference_fast[:, :, discrete_state_idx, -1]
 
         # Truncate the inference results with specified percentile
         rSLDS_same_speed_inference_slow, trial_length_slow_min = drop_and_truncate(rSLDS_same_speed_inference_slow, trial_lengths_slow, truncate_percentile)
@@ -1370,326 +1423,184 @@ def plot_per_time_inference_results_avg_session(
         n_trials_fast_cumulative += n_trials_fast
 
     inference_results = {
-        'fast':
-        # 'near':
+        trial_filters[0]:
             {
-                'LDS_mean_same_speed': rSLDS_same_speed_inference_fast_all_,
-                'LDS_mean_cross_speed': rSLDS_cross_speed_inference_fast_all_,
-                # 'LDS_mean_same_speed': rSLDS_same_speed_inference_fast_all[0],
-                # 'LDS_mean_cross_speed': rSLDS_cross_speed_inference_fast_all[0],
+                'same_speed': rSLDS_same_speed_inference_fast_all_,
+                'cross_speed': rSLDS_cross_speed_inference_fast_all_,
             },
-        'slow':
-        # 'far':
+        trial_filters[1]:
             {
-                'LDS_mean_same_speed': rSLDS_same_speed_inference_slow_all_,
-                'LDS_mean_cross_speed': rSLDS_cross_speed_inference_slow_all_,
-                # 'LDS_mean_same_speed': rSLDS_same_speed_inference_slow_all[0],
-                # 'LDS_mean_cross_speed': rSLDS_cross_speed_inference_slow_all[0],
+                'same_speed': rSLDS_same_speed_inference_slow_all_,
+                'cross_speed': rSLDS_cross_speed_inference_slow_all_,
             }
     }
     
-    vmin = 0
+    vmin = 0.5
     vmax = 1
-    
-    ## Plot results
 
-    fig1 = plt.figure(figsize=(90*mm, 45*mm))
-    ax0 = fig1.add_subplot(1, 2, 1, projection='3d')
-    ax1 = fig1.add_subplot(1, 2, 2, projection='3d')
-    axs1 = [ax0, ax1]
+    ## ── Time axis setup ──────────────────────────────────────────────
+    dt = config.time_step
+    t0 = visual_delay_time
 
-    fig2, axs2 = plt.subplots(1, 2, figsize=(90*mm, 40*mm), sharey=True)
+    # Build time vectors per condition (trial lengths may differ)
+    time_vectors = {}
+    t_max_all = 0
+    for trial_filter in trial_filters:
+        T_cond = inference_results[trial_filter]['same_speed'].shape[-1]
+        time_vectors[trial_filter] = t0 + np.arange(T_cond) * dt
+        t_max_all = max(t_max_all, time_vectors[trial_filter][-1])
 
+    # Column width ratios proportional to trial duration (equalize time scale)
+    durations = [time_vectors[tf][-1] - time_vectors[tf][0] for tf in trial_filters]
+    width_ratios = [d / max(durations) for d in durations]
+
+    ## ══════════════════════════════════════════════════════════════════
+    ## Fig 1 — R^2 heatmaps: 2 rows x 2 cols
+    ##          Row 0 = same-condition, Row 1 = cross-condition
+    ## ══════════════════════════════════════════════════════════════════
+    n_dims = len(ns_states)
+    panel_labels = ['Same-condition', 'Cross-condition']
+    data_keys = ['same_speed', 'cross_speed']
+
+    fig1, axs1 = plt.subplots(
+        2, len(trial_filters), figsize=(90 * mm, 80 * mm),
+        sharey=True,
+        gridspec_kw={'width_ratios': width_ratios})
+
+    def build_tick_info(t_vec_local, step=0.25):
+        """Build tick positions and labels for a given time vector.
+
+        Parameters
+        ----------
+        t_vec_local : array
+            Time vector for the condition.
+        step : float
+            Tick spacing in seconds after the first tick (t0).
+            E.g. 0.25 -> t0, 0.25, 0.5, 0.75, ...
+                 0.2  -> t0, 0.2, 0.4, 0.6, ...
+        """
+        t_last_local = t_vec_local[-1]
+        first_nice = np.ceil(t0 / step) * step
+        if first_nice - t0 < 0.01:
+            first_nice += step
+        nice_ticks = np.arange(first_nice, t_last_local + 1e-9, step)
+        positions = np.concatenate([[t0], nice_ticks])
+        def _fmt(t):
+            """Format: integers as '1', otherwise up to 2 decimals with no trailing zeros."""
+            if abs(t - round(t)) < 1e-9:
+                return f'{t:.0f}'
+            s = f'{t:.2f}'.rstrip('0')
+            return s
+        labels = [_fmt(t0)] + [_fmt(t) for t in nice_ticks]
+        return positions, labels
+
+    for i_key, key in enumerate(data_keys):
+        for i_tf, trial_filter in enumerate(trial_filters):
+            ax = axs1[i_key, i_tf]
+            t_vec = time_vectors[trial_filter]
+            cond_label = trial_filter_name_conversion.get(trial_filter, trial_filter)
+
+            r2_matrix = np.mean(
+                inference_results[trial_filter][key], axis=1)
+
+            im = ax.pcolormesh(
+                t_vec, ns_states, r2_matrix,
+                vmin=vmin, vmax=vmax,
+                cmap='rocket', shading='nearest', rasterized=True)
+
+            tick_pos, tick_lab = build_tick_info(t_vec)
+            ax.set_xticks(tick_pos)
+            if i_key == 0:
+                ax.set_xticklabels([])
+            else:
+                ax.set_xticklabels(tick_lab)
+
+            ax.set_yticks(ns_states)
+
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+
+            if peak_time is not None:
+                ax.axvline(peak_time, color="black", linewidth=size_line_thin,
+                           linestyle=":", alpha=alpha_line)
+
+    # fig1.suptitle(model_label, fontsize=8)
+
+    ## ── Standalone horizontal colorbar (no labels) ──
+    cbar_fig, cbar_ax = plt.subplots(figsize=(20 * mm, 2 * mm))
+    cbar_norm = Normalize(vmin=vmin, vmax=vmax)
+    cbar = cbar_fig.colorbar(
+        plt.cm.ScalarMappable(norm=cbar_norm, cmap='rocket'),
+        cax=cbar_ax,
+        orientation='horizontal')
+    cbar.set_ticks([])
+    cbar.outline.set_visible(False)
+    cbar_ax.set_frame_on(False)
+
+    ## ══════════════════════════════════════════════════════════════════
+    ## Fig 2 — Difference heatmap (same - cross), no significance overlay
+    ## ══════════════════════════════════════════════════════════════════
+    diff_max = 0.2
+    div_cmap = sns.color_palette('vlag', as_cmap=True)
+
+    fig2, axs2 = plt.subplots(
+        1, 2, figsize=(90 * mm, 40 * mm),
+        sharey=True,
+        gridspec_kw={'width_ratios': width_ratios})
 
     for i_tf, trial_filter in enumerate(trial_filters):
-
-        # Plot lines and fill under them
-        for i_cs, n_states in enumerate(ns_states):
-
-            # Plot fig1
-            # Only plot even numbered states
-            if i_cs % 2 == 1:
-                continue
-            linestyles = ['-', '--']
-
-            zs_list = [
-                np.mean(inference_results[trial_filter]['LDS_mean_same_speed'],  axis=1)[i_cs],
-                np.mean(inference_results[trial_filter]['LDS_mean_cross_speed'], axis=1)[i_cs]
-            ]
-
-            trial_length = zs_list[0].shape[-1]
-
-            xs = np.arange(trial_length)
-            ys = np.full(trial_length, n_states)
-
-            for linestyle, zs in zip(linestyles, zs_list):
-
-                # Plot the line
-                axs1[i_tf].plot(
-                    xs, 
-                    ys, 
-                    zs, 
-                    color=continuous_state_colors[i_cs], 
-                    lw=0.25,
-                    alpha=alpha_line_thick,
-                    linestyle=linestyle)
-
-                # Create the polygon for filling
-                verts = utils_vis.polygon_under_curve(xs, ys, zs, z_min=vmin)
-
-                # Create a Poly3DCollection object
-                poly = Poly3DCollection(
-                    verts, 
-                    facecolor=continuous_state_colors[i_cs], 
-                    alpha=0.1)
-
-                # Add the polygon to the axes
-                axs1[i_tf].add_collection3d(poly)
-
-            
-            # Plot fig2
-            diffs = inference_results[trial_filter]['LDS_mean_same_speed'][i_cs] - inference_results[trial_filter]['LDS_mean_cross_speed'][i_cs]
-            diffs_mean = np.mean(diffs, axis=0)
-            diffs_sem = np.std(diffs, axis=0, ddof=1) / np.sqrt(diffs.shape[0])
-
-            # Plot the line
-            # axs2[i_tf].plot(
-            #     xs,
-            #     diffs_mean,
-            #     color=continuous_state_colors[i_cs],
-            #     lw=size_line_thin,
-            #     alpha=alpha_line)
-    
-            axs2[i_tf].fill_between(
-                xs, 
-                diffs_mean - diffs_sem, 
-                diffs_mean + diffs_sem,
-                color=continuous_state_colors[i_cs], 
-                alpha=alpha_line, 
-                linewidth=0)
-
-
-        if trial_filter in ['slow', 'far']:
-            xtick_step = 0.5
-        else:
-            # xtick_step = 0.1
-            xtick_step = 0.2
-
-
-
-        
-
-        # # ────────────────────────────────────────────────────────────────
-        # # --- SETUP — you already have these three numbers
-        # # ────────────────────────────────────────────────────────────────
-        # dt   = config.time_step        # seconds per sample            e.g. 0.01
-        # t0   = visual_delay_time       # first sample’s absolute time  e.g. 0.139
-        # T    = trial_length            # number of samples             e.g. 30
-
-        # # ────────────────────────────────────────────────────────────────
-        # # 1. choose a “nice” step in seconds and build the tick list
-        # # ────────────────────────────────────────────────────────────────
-        # t_last    = t0 + (T-1)*dt                            # last time-point
-        # tick_times = np.arange(t0, t_last + 1e-9, xtick_step) # t0, t0+0.05, …
-
-        # # ────────────────────────────────────────────────────────────────
-        # # 2. convert those times back to *index* positions (data coords)
-        # #    position_i = (time_i − t0) / dt
-        # # ────────────────────────────────────────────────────────────────
-        # tick_idx = (tick_times - t0) / dt
-
-        # # ────────────────────────────────────────────────────────────────
-        # # 3. set ticks + labels on each axis
-        # # ────────────────────────────────────────────────────────────────
-        # for ax in (axs1[i_tf], axs2[i_tf]):
-        #     ax.set_xticks(tick_idx)
-        #     ax.set_xticklabels([f'{t:.2f}' for t in tick_times])
-
-
-
-
-        # ───────────── parameters you already know ─────────────
-        dt   = config.time_step          # seconds per sample, e.g. 0.01
-        t0   = visual_delay_time         # first sample’s absolute time, e.g. 0.139
-        T    = trial_length              # number of samples
-
-        # ───────────── 1. build the tick-time list ─────────────
-        t_last      = t0 + (T - 1) * dt
-        first_nice  = (np.ceil(t0 / xtick_step)) * xtick_step      # 0.150 in the example
-        tick_times  = np.concatenate([[t0],
-                                      np.arange(first_nice, t_last + 1e-9, xtick_step)])
-        # Guard against a duplicate when t0 is itself “nice”
-        tick_times  = np.unique(np.round(tick_times, 10))
-
-        # ───────────── 2. convert times → sample indices ───────
-        tick_idx = (tick_times - t0) / dt     # index 0 for t0, >0 for the rest
-
-        # ───────────── 3. apply to every axis you care about ───
-        for ax in (axs1[i_tf], axs2[i_tf]):
-            ax.set_xticks(tick_idx)
-            ax.set_xticklabels([f'{tick_times[0]:.2f}'] + [f'{t:.1f}' for t in tick_times[1:]])
-
-
-
-
-
-        # Set labels and title
-        axs1[i_tf].set_xlabel('Time (s)', fontsize=5, labelpad=-8)
-        axs1[i_tf].set_ylabel('Number of latent states', fontsize=5, labelpad=-8)
-        
-
-        axs2[i_tf].set_xlabel('Time (s)', fontsize=5)
-
-        # axs1[i_tf].set_xlim(ns_states[0], ns_states[-1])
-        # axs1[i_tf].set_ylim(ns_discrete_states[0], ns_discrete_states[-1])
-        axs1[i_tf].set_zlim(vmin, vmax)
-        # axs1[i_tf].set_ylim(ns_states[0])
-        axs1[i_tf].set_xlim(tick_idx[0])
-
-        axs2[i_tf].set_ylim(-0.2, 0.2)
-        axs2[i_tf].set_xlim(tick_idx[0])
-
-        axs2[i_tf].axhline(0, color='black', lw=0.25, ls='--', alpha=alpha_line)
-        
-        axs1[i_tf].set_yticks(np.arange(ns_states[0], ns_states[-1] + 1, 4))
-        
-
-        # Adjust viewing angle
-        # axs1[i_tf].view_init(elev=10, azim=-75)
-        # axs1[i_tf].view_init(elev=20, azim=-40)
-        axs1[i_tf].view_init(elev=25, azim=-130)
-
-        # axs1[i_tf].tick_params(axis='both', which='major', labelsize=5)
-
-        ## Remove background panes
-        axs1[i_tf].xaxis.pane.fill = False
-        axs1[i_tf].yaxis.pane.fill = False
-        axs1[i_tf].zaxis.pane.fill = False
-        axs1[i_tf].grid(False) 
-
-        # ► put this immediately after you create each 3-D axis
-        for axis in (axs1[i_tf].xaxis, axs1[i_tf].yaxis, axs1[i_tf].zaxis):
-            # 1) bring tick LABELS closer to their axis lines
-            axis.set_tick_params(pad=-4)      # default ~4–6 → try 0–2
-
-            # # 2) shorten the little tick MARKS themselves (optional)
-            # axis.set_tick_params(length=2)   # default 3.5
-
-            # axis._axinfo['tick']['pad']   = 0   # label ↔ axis distance (pts)
-            # axis._axinfo['tick']['outward_factor'] = 0.2  # tick length scaling
-
-
-        axs2[i_tf].spines[['right', 'top']].set_visible(False)  # keep bottom spine
-        
-
-        ## Set grid colors
-        # axs1[i_tf].xaxis._axinfo['grid'].update(color='black')
-        # axs1[i_tf].yaxis._axinfo['grid'].update(color='black')
-        # axs1[i_tf].zaxis._axinfo['grid'].update(color='black')    
-
-        # ## Create tick labels: label only at even indices, else empty string
-        # tick_labels = [str(x) if i % 2 == 0 else '' for i, x in enumerate(ns_states)]
-
-        # ## Set tick labels
-        # axs1[i_tf].set_xticklabels(tick_labels)
-
-
-        ## Significance analysis
-        same = inference_results[trial_filter]['LDS_mean_same_speed']
-        cross = inference_results[trial_filter]['LDS_mean_cross_speed']
-        diff = same - cross                       # positive ⇒ same-speed better
-
-        n_states, _, T = diff.shape
-        p_raw = np.ones((n_states, T))
-
-        for k in range(n_states):
-            for t in range(T):
-                # Wilcoxon signed-rank on the trials of that state & time bin
-                _, p = wilcoxon(diff[k, :, t], alternative='greater')  # “greater” = same>cross
-                p_raw[k, t] = p
-
-        # FDR-correct across the whole matrix
-        rej, p_fdr = fdrcorrection(p_raw.ravel(), alpha=0.05)
-        p_fdr = p_fdr.reshape(p_raw.shape)
-        sig = p_fdr < 0.05
-
-        def significant_segments(mask, xs):
-            """Return list of (x_start, x_end) intervals where mask==True."""
-            if mask.ndim != 1:
-                raise ValueError("mask must be 1-D along time")
-            # find rising & falling edges
-            edges = np.diff(mask.astype(int), prepend=0, append=0)
-            starts = np.where(edges ==  1)[0]
-            ends   = np.where(edges == -1)[0]    # first False AFTER streak
-            return [(xs[s], xs[e-1]) for s, e in zip(starts, ends)]
-    
-        # after axs2[i_tf] has been created
-        divider = make_axes_locatable(axs2[i_tf])
-        ax_sig  = divider.append_axes("top", size="15%", pad=0.05, sharex=axs2[i_tf])
-
-        # no y-ticks / labels
-        ax_sig.yaxis.set_visible(False)
-        ax_sig.xaxis.set_visible(False)
-        ax_sig.spines[['bottom', 'right', 'left', 'top']].set_visible(False)  # keep bottom spine
-        # ax_sig.spines[['right', 'left', 'top']].set_visible(False)  # keep bottom spine
-
-        # --------------------------------------------------------------
-        # Config – tweak these two numbers until it feels airy enough
-        # --------------------------------------------------------------
-        row_height = 1.4      # 1.0 = bars touch; >1 = extra gap between bars
-        edge_pad   = 0      # extra empty space above the top bar & below the bottom
-
-        # --------------------------------------------------------------
-        #  A. draw the stacked bars with more head-room
-        # --------------------------------------------------------------
-        for j, n_state in enumerate(ns_states):
-            if n_state % 2 == 1:  # only plot even numbered states
-                continue
-            y_level = (j + 0.5) * row_height          # centre of that bar’s lane
-            for x0, x1 in significant_segments(sig[j], xs):
-                ax_sig.hlines(y_level, x0, x1,
-                              color=continuous_state_colors[j], lw=1, alpha=alpha_line_thick)
-
-        # --------------------------------------------------------------
-        #  B.  set the y-axis limits so bars don’t hug the panel edges
-        # --------------------------------------------------------------
-        n_rows = len(ns_states)
-        ax_sig.set_ylim(-edge_pad, n_rows*row_height + edge_pad)
-
-
-    axs1[0].set_zlabel('Variance explained (R²)', fontsize=5, labelpad=-8)
-    axs2[0].set_ylabel('Difference in variance explained (R²)', fontsize=5)
-
-
-    ## Add custom legend
-    # handles = [mpatches.Patch(color=continuous_state_colors[i], label=f'{s}')
-    #        for i, s in enumerate(ns_states)]
-
-    # n_cols = 20                           # wrap to keep it compact
-    # axs2[0].legend(
-    #     handles,
-    #     [str(s) for s in ns_states],
-    #     title="# latent states",
-    #     loc="lower center",
-    #     bbox_to_anchor=(1.1, -0.3),     # (x-centre, y) in figure coords
-    #     ncols=n_cols,             # wrap to keep it compact
-    #     # frameon=False,
-    #     handlelength=0.9, handleheight=0.9,
-    #     columnspacing=0.8, borderpad=0.4,
-    #     fontsize=5, 
-    #     title_fontsize=5,
-    # )
-
-    # (optional) tighten layout so the legend isn't cut off when you save
-    # fig2.subplots_adjust(bottom=0.2)      # tweak as needed
-
-    fig2.tight_layout()
-
-    ## Write image
+        ax = axs2[i_tf]
+        t_vec = time_vectors[trial_filter]
+        cond_label = trial_filter_name_conversion.get(trial_filter, trial_filter)
+
+        same = inference_results[trial_filter]['same_speed']
+        cross = inference_results[trial_filter]['cross_speed']
+        diff = same - cross  # positive => same-condition better
+
+        # Mean difference over trials
+        diff_mean = np.mean(diff, axis=1)
+
+        im2 = ax.pcolormesh(
+            t_vec, ns_states, diff_mean,
+            vmin=-diff_max, vmax=diff_max,
+            cmap=div_cmap, shading='nearest', rasterized=True)
+
+        # ax.set_title(cond_label)
+        tick_pos, tick_lab = build_tick_info(t_vec)
+        ax.set_xticks(tick_pos)
+        ax.set_xticklabels(tick_lab)
+        # ax.set_xlabel('Time (s)')
+        ax.set_yticks(ns_states)
+
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+
+        if peak_time is not None:
+            ax.axvline(peak_time, color="black", linewidth=size_line_thin,
+                       linestyle=":", alpha=alpha_line)
+
+    # axs2[0].set_ylabel('Number of latent states')
+
+    ## ── Standalone horizontal colorbar for fig2 (no labels) ──
+    cbar2_fig, cbar2_ax = plt.subplots(figsize=(20 * mm, 2 * mm))
+    cbar2_norm = Normalize(vmin=-diff_max, vmax=diff_max)
+    cbar2 = cbar2_fig.colorbar(
+        plt.cm.ScalarMappable(norm=cbar2_norm, cmap=div_cmap),
+        cax=cbar2_ax,
+        orientation='horizontal')
+    cbar2.set_ticks([])
+    cbar2.outline.set_visible(False)
+    cbar2_ax.set_frame_on(False)
+
+    ## ══════════════════════════════════════════════════════════════════
+    ## Save figures
+    ## ══════════════════════════════════════════════════════════════════
     if len(session_data_names) > 1:
         session_data_names_str = str(len(session_data_names)) + '_sessions'
     else:
         session_data_names_str = str(session_data_names)
+
+    discrete_label = f'K{n_discrete}'
 
     img_name = '_'.join(map(str, [x for x in [
         session_data_names_str,
@@ -1705,40 +1616,804 @@ def plot_per_time_inference_results_avg_session(
         dynamics_class,
         emission_class,
         init_type,
-        alpha] if x is not None]))
+        alpha,
+        discrete_label] if x is not None]))
 
-    save_path1 = os.path.join(vis_dir, img_name + '.pdf')
-    save_path2 = os.path.join(vis_dir, img_name + '_diff.pdf')
+    save_path1 = os.path.join(vis_dir, img_name + '_heatmap.pdf')
+    save_path2 = os.path.join(vis_dir, img_name + '_diff_heatmap.pdf')
 
-    fig1.savefig(save_path1, dpi=600, transparent=True, bbox_inches=None, format='pdf')
-    fig2.savefig(save_path2, dpi=600, transparent=True, bbox_inches=None, format='pdf')
-    # plt.show()
-    print('(Axis 0) Elevation angle:', axs1[0].elev, ' Azimuth angle:', axs1[0].azim)
-    print('(Axis 1) Elevation angle:', axs1[1].elev, ' Azimuth angle:', axs1[1].azim)
+    fig1.tight_layout()
+    fig2.tight_layout()
+
+    fig1.savefig(save_path1, dpi=600, transparent=True, bbox_inches='tight', format='pdf')
+    fig2.savefig(save_path2, dpi=600, transparent=True, bbox_inches='tight', format='pdf')
+    cbar_fig.savefig(os.path.join(vis_dir, img_name + '_colorbar.pdf'),
+                     bbox_inches=None, transparent=True, dpi=600, format='pdf')
+    cbar2_fig.savefig(os.path.join(vis_dir, img_name + '_diff_colorbar.pdf'),
+                      bbox_inches=None, transparent=True, dpi=600, format='pdf')
     plt.close(fig1)
     plt.close(fig2)
-    
+    plt.close(cbar_fig)
+    plt.close(cbar2_fig)
 
-    # Create a continuous colormap from seaborn's 'rocket' palette
-    cmap = sns.color_palette("rocket", as_cmap=True)
-    norm = Normalize(vmin=2, vmax=20)
 
-    # Build the figure
-    fig, ax = plt.subplots(figsize=(20*mm, 2*mm))
-    # fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+def plot_rslds_phase_inference_results_avg_session(
+    unit_filter,
+    input_unit_filter,
+    data_format,
+    dynamics_class,
+    emission_class,
+    init_type,
+    subspace_type,
+    alpha,
+    n_discrete=2,
+    inference_type='forecast',
+    truncate_percentile=10,
+    visual_delay_time=0.0):
+    """
+    rSLDS-specific analysis: compare same-vs-cross R^2 separately for
+    transient and steady discrete-state phases.
 
-    # Add a horizontal colorbar without ticks or labels
-    cbar = fig.colorbar(
-        plt.cm.ScalarMappable(norm=norm, cmap=cmap),
-        cax=ax,
-        orientation='horizontal'
-    )
-    cbar.set_ticks([])
-    cbar.outline.set_visible(False)
+    For each trial, the posterior discrete state sequence (from the .npz
+    field ``discrete_states_{fast,slow}_test_per_time``) partitions time
+    bins into phases.  We collect per-time R^2 values within each phase,
+    then compare same-condition vs cross-condition performance by phase.
+    """
 
-    # Remove the axes frame completely
-    ax.set_frame_on(False)
-    fig.savefig(os.path.join(vis_dir, 'continuous_states_color_bar.pdf'), bbox_inches=None, transparent=True, dpi=600, format='pdf')
+    print(f'Plotting rSLDS phase inference (K={n_discrete})...')
+
+    discrete_state_idx = ns_discrete_states.index(n_discrete)
+    inference_name = 'r2_' + inference_type
+
+    # ── Build file names for inference .npz ──
+    same_speed_inference_name = '_'.join(map(str, [x for x in [
+        'inference',
+        unit_filter,
+        input_unit_filter,
+        window_config,
+        time_offset,
+        data_format,
+        trial_filters,
+        'same_speed',
+        random_states,
+        n_folds,
+        ns_states,
+        ns_discrete_states,
+        ns_iters,
+        'rSLDS',
+        dynamics_class,
+        emission_class,
+        init_type,
+        subspace_type,
+        alpha] if x is not None]))
+
+    cross_speed_inference_name = '_'.join(map(str, [x for x in [
+        'inference',
+        unit_filter,
+        None,
+        window_config,
+        None,
+        data_format,
+        trial_filters,
+        'cross_speed',
+        random_states,
+        n_folds,
+        ns_states,
+        ns_discrete_states,
+        ns_iters,
+        'rSLDS',
+        dynamics_class,
+        emission_class,
+        init_type,
+        subspace_type,
+        alpha] if x is not None]))
+
+    # ── Per-phase R^2 collection across sessions ──
+    # For each (trial_filter, same/cross, n_continuous_states, phase):
+    #   collect lists of scalar R^2 values (one per trial)
+    # Store per-time-point delta R^2 (same - cross) by phase
+    phase_r2 = {
+        tf: {
+            'same_minus_cross': {ns: {phase: [] for phase in range(n_discrete)}
+                                 for ns in ns_states}
+        }
+        for tf in trial_filters
+    }
+
+    for session_data_name in session_data_names:
+
+        session_results_dir = os.path.join(results_dir, session_data_name)
+
+        # Load inference .npz arrays
+        same_inf = np.load(os.path.join(
+            session_results_dir, same_speed_inference_name + '.npz'))
+        cross_inf = np.load(os.path.join(
+            session_results_dir, cross_speed_inference_name + '.npz'))
+
+        for i_tf, trial_filter in enumerate(trial_filters):
+            tf_key = trial_filter
+
+            # R^2 per time: shape (n_rs, n_ns_states, n_ns_discrete, n_ns_iters, n_trials, T_r2)
+            same_r2_per_time = same_inf[inference_name + f'_{tf_key}_test_per_time']
+            cross_r2_per_time = cross_inf[inference_name + f'_{tf_key}_test_per_time']
+
+            # Discrete states per time: shape (n_rs, n_ns_states, n_ns_discrete, n_ns_iters, n_trials, T_ds)
+            # Values: integer 0..K-1, padded with -1
+            ds_per_time = same_inf[f'discrete_states_{tf_key}_test_per_time']
+
+            trial_lengths_full = same_inf[f'trial_lengths_{tf_key}']
+            trial_lengths = trial_lengths_full - 1  # forecast R^2 is T-1
+
+            # Select discrete state idx and last iteration, average over random states
+            # -> shape (n_ns_states, n_trials, T)
+            same_r2 = np.mean(same_r2_per_time[:, :, discrete_state_idx, -1], axis=0)
+            cross_r2 = np.mean(cross_r2_per_time[:, :, discrete_state_idx, -1], axis=0)
+
+            # Discrete states: use first random state (deterministic given the model)
+            # -> shape (n_ns_states, n_trials, T_ds)
+            ds_all = ds_per_time[0, :, discrete_state_idx, -1]
+
+            n_trials = same_r2.shape[1]
+
+            for i_ns, n_continuous_states in enumerate(ns_states):
+
+                # ── Reorder discrete states so state 0 = earliest (transient) ──
+                # Collect valid discrete state sequences for this latent dim
+                ds_sequences = []
+                for i_trial in range(n_trials):
+                    tl_full = int(trial_lengths_full[i_trial])
+                    ds_trial_full = ds_all[i_ns, i_trial, :tl_full]
+                    if not np.all(ds_trial_full == -1):
+                        ds_sequences.append(ds_trial_full)
+
+                if len(ds_sequences) == 0:
+                    continue
+
+                # Reorder: state that appears earliest -> 0 (transient)
+                ds_sequences_reordered, old_to_new, _ = utils_vis.reorder_discrete_states(
+                    ds_sequences, n_discrete)
+
+                # Build a lookup from trial index to reordered sequence
+                reordered_idx = 0
+                for i_trial in range(n_trials):
+                    tl_full = int(trial_lengths_full[i_trial])
+                    ds_trial_full = ds_all[i_ns, i_trial, :tl_full]
+                    if np.all(ds_trial_full == -1):
+                        continue
+
+                    tl = int(trial_lengths[i_trial])
+                    tl_r2 = min(tl, same_r2.shape[-1])
+
+                    same_trial_r2 = same_r2[i_ns, i_trial, :tl_r2]
+                    cross_trial_r2 = cross_r2[i_ns, i_trial, :tl_r2]
+
+                    # Align: forecast at t uses ds[t] to predict x[t+1],
+                    # so R^2[t] corresponds to ds[t]. R^2 has length T-1.
+                    ds_reordered = ds_sequences_reordered[reordered_idx]
+                    ds_trial = ds_reordered[:tl_r2]
+                    reordered_idx += 1
+
+                    # Store individual time-point differences (same - cross)
+                    diff_trial_r2 = same_trial_r2 - cross_trial_r2
+
+                    for phase in range(n_discrete):
+                        mask = ds_trial == phase
+                        if mask.sum() > 0:
+                            phase_r2[trial_filter]['same_minus_cross'][n_continuous_states][phase].extend(
+                                diff_trial_r2[mask].tolist())
+
+    # ── Plotting ──
+    # Box plots of per-time-point delta R^2 (same - cross), split by phase
+    # Key question: is the gap larger in the steady phase?
+    phase_names = {0: 'Transient', 1: 'Steady'}
+
+    # Use task-specific discrete state colors (dark = transient, light = steady)
+    task_name = session_data_names[0].split('_')[-1]
+    from vis_config import discrete_state_colors as dsc
+
+    fig, axs = plt.subplots(
+        1, len(trial_filters),
+        figsize=(120 * mm, 55 * mm),
+        sharey=True)
+    if len(trial_filters) == 1:
+        axs = [axs]
+
+    print(f'\n{"="*70}')
+    print(f'rSLDS phase analysis (K={n_discrete}): transient vs steady')
+    print(f'{"="*70}')
+
+    for i_tf, trial_filter in enumerate(trial_filters):
+        ax = axs[i_tf]
+        cond_label = trial_filter_name_conversion.get(trial_filter, trial_filter)
+
+        # Phase colors: state 0 (transient) = dark, state 1 (steady) = light
+        tf_colors = dsc[task_name][trial_filter]
+        phase_palette = {
+            'Transient': tf_colors[0],  # dark
+            'Steady': tf_colors[1],     # light
+        }
+
+        # Build DataFrame: each row is one time-point delta R^2
+        rows = []
+        for ns in ns_states:
+            for phase in range(n_discrete):
+                vals = phase_r2[trial_filter]['same_minus_cross'][ns][phase]
+                for v in vals:
+                    rows.append({
+                        'Latent dims': ns,
+                        'Phase': phase_names.get(phase, f'State {phase}'),
+                        'delta_R2': v,
+                    })
+
+        if len(rows) == 0:
+            ax.set_title(cond_label + '\n(no data)')
+            continue
+
+        df = pd.DataFrame(rows)
+
+        sns.boxplot(
+            data=df, x='Latent dims', y='delta_R2',
+            hue='Phase', ax=ax,
+            fliersize=0.5, linewidth=0.5,
+            palette=phase_palette,
+            showfliers=False)
+
+        ax.axhline(0, color='black', lw=0.5, ls='--', alpha=0.5)
+        ax.set_title(cond_label)
+        ax.set_xlabel('Number of latent states')
+        ax.spines[['right', 'top']].set_visible(False)
+
+        if i_tf > 0:
+            ax.get_legend().remove()
+
+        # ── Statistics: MWU + rank-biserial r for each latent dim ──
+        print(f'\n{cond_label}:')
+        print(f'{"n_states":>10} {"U":>10} {"p":>12} {"r_rb":>8} '
+              f'{"n_trans":>8} {"n_steady":>8} {"med_trans":>10} {"med_steady":>10}')
+        print('-' * 90)
+
+        for ns in ns_states:
+            trans_vals = np.array(phase_r2[trial_filter]['same_minus_cross'][ns][0])
+            steady_vals = np.array(phase_r2[trial_filter]['same_minus_cross'][ns][1])
+
+            if len(trans_vals) < 2 or len(steady_vals) < 2:
+                print(f'{ns:>10}   insufficient data')
+                continue
+
+            stat, p_val = mannwhitneyu(trans_vals, steady_vals, alternative='two-sided')
+            n1, n2 = len(trans_vals), len(steady_vals)
+            r_rb = 1 - 2 * stat / (n1 * n2)
+
+            print(f'{ns:>10} {stat:>10.0f} {p_val:>12.3g} {r_rb:>8.3f} '
+                  f'{n1:>8} {n2:>8} {np.median(trans_vals):>10.4f} {np.median(steady_vals):>10.4f}')
+
+    axs[0].set_ylabel(r'$\Delta$R$^2$ (same $-$ cross)')
+    fig.tight_layout()
+
+    # ── Save ──
+    if len(session_data_names) > 1:
+        session_data_names_str = str(len(session_data_names)) + '_sessions'
+    else:
+        session_data_names_str = str(session_data_names)
+
+    img_name = '_'.join(map(str, [x for x in [
+        session_data_names_str,
+        'phase_inference',
+        inference_type,
+        truncate_percentile,
+        unit_filter,
+        input_unit_filter,
+        window_config,
+        time_offset,
+        data_format,
+        trial_filters,
+        dynamics_class,
+        emission_class,
+        init_type,
+        alpha,
+        f'K{n_discrete}'] if x is not None]))
+
+    save_path = os.path.join(vis_dir, img_name + '_phase_delta_r2.pdf')
+    fig.savefig(save_path, dpi=600, transparent=True, bbox_inches='tight', format='pdf')
+    plt.close(fig)
+
+    ## ══════════════════════════════════════════════════════════════════
+    ## Fig 4 — Pooled across latent dims: 4 boxes total
+    ##          (ballistic transient, ballistic steady,
+    ##           sustained transient, sustained steady)
+    ## ══════════════════════════════════════════════════════════════════
+
+    # Collect pooled delta R^2 per (trial_filter, phase)
+    pooled = {}
+    for trial_filter in trial_filters:
+        pooled[trial_filter] = {phase: [] for phase in range(n_discrete)}
+        for ns in ns_states:
+            for phase in range(n_discrete):
+                pooled[trial_filter][phase].extend(
+                    phase_r2[trial_filter]['same_minus_cross'][ns][phase])
+
+    # Build DataFrame
+    rows_pooled = []
+    for trial_filter in trial_filters:
+        cond_label = trial_filter_name_conversion.get(trial_filter, trial_filter)
+        for phase in range(n_discrete):
+            phase_label = phase_names.get(phase, f'State {phase}')
+            for v in pooled[trial_filter][phase]:
+                rows_pooled.append({
+                    'Condition': cond_label,
+                    'Phase': phase_label,
+                    'delta_R2': v,
+                })
+
+    df_pooled = pd.DataFrame(rows_pooled)
+
+    # Build palette keyed by (Condition, Phase)
+    pooled_palette = {}
+    for trial_filter in trial_filters:
+        cond_label = trial_filter_name_conversion.get(trial_filter, trial_filter)
+        tf_colors = dsc[task_name][trial_filter]
+        pooled_palette[(cond_label, 'Transient')] = tf_colors[0]
+        pooled_palette[(cond_label, 'Steady')]     = tf_colors[1]
+
+    fig4, ax4 = plt.subplots(figsize=(55 * mm, 55 * mm))
+
+    sns.boxplot(
+        data=df_pooled, x='Condition', y='delta_R2',
+        hue='Phase', ax=ax4,
+        fliersize=0.5, linewidth=0.5,
+        palette={
+            'Transient': dsc[task_name][trial_filters[0]][0],
+            'Steady':    dsc[task_name][trial_filters[0]][1],
+        },
+        showfliers=False)
+
+    ax4.axhline(0, color='black', lw=0.5, ls='--', alpha=0.5)
+    ax4.set_xlabel('')
+    ax4.set_ylabel(r'$\Delta$R$^2$ (same $-$ cross)')
+    ax4.spines[['right', 'top']].set_visible(False)
+
+    # ── Significance annotations ──
+    def _sig_stars(p):
+        if p < 0.001:
+            return '***'
+        elif p < 0.01:
+            return '**'
+        elif p < 0.05:
+            return '*'
+        return 'n.s.'
+
+    print(f'\n{"="*70}')
+    print(f'Pooled phase analysis (K={n_discrete}): transient vs steady')
+    print(f'{"="*70}')
+
+    y_max = df_pooled['delta_R2'].quantile(0.98)
+    bracket_dy = (df_pooled['delta_R2'].quantile(0.98)
+                  - df_pooled['delta_R2'].quantile(0.02)) * 0.06
+
+    for i_tf, trial_filter in enumerate(trial_filters):
+        cond_label = trial_filter_name_conversion.get(trial_filter, trial_filter)
+        trans_vals = np.array(pooled[trial_filter][0])
+        steady_vals = np.array(pooled[trial_filter][1])
+
+        stat, p_val = mannwhitneyu(trans_vals, steady_vals, alternative='two-sided')
+        n1, n2 = len(trans_vals), len(steady_vals)
+        r_rb = 1 - 2 * stat / (n1 * n2)
+
+        print(f'{cond_label}: U={stat:.0f}, p={p_val:.3g}, r={r_rb:.3f}, '
+              f'n_trans={n1}, n_steady={n2}, '
+              f'med_trans={np.median(trans_vals):.4f}, med_steady={np.median(steady_vals):.4f}')
+
+        # Bracket positions: two boxes per condition group
+        x_left  = i_tf - 0.2
+        x_right = i_tf + 0.2
+        y_bar   = y_max + bracket_dy * (1 + i_tf * 0.5)
+
+        ax4.plot([x_left, x_left, x_right, x_right],
+                 [y_bar - bracket_dy * 0.3, y_bar, y_bar, y_bar - bracket_dy * 0.3],
+                 lw=0.8, color='black')
+        stars = _sig_stars(p_val)
+        ax4.text((x_left + x_right) / 2, y_bar + bracket_dy * 0.15,
+                 f'r={r_rb:.2f}\n{stars}',
+                 ha='center', va='bottom', fontsize=6)
+
+    fig4.tight_layout()
+
+    save_path4 = os.path.join(vis_dir, img_name + '_phase_delta_r2_pooled.pdf')
+    fig4.savefig(save_path4, dpi=600, transparent=True, bbox_inches='tight', format='pdf')
+    plt.close(fig4)
+
+
+def plot_lds_phase_inference_results_avg_session(
+    unit_filter,
+    input_unit_filter,
+    data_format,
+    dynamics_class,
+    emission_class,
+    init_type,
+    subspace_type,
+    alpha,
+    inference_type='forecast',
+    truncate_percentile=10,
+    visual_delay_time=0.0,
+    peak_time=0.3,
+    session_data_names=None,
+    results_dir=None,
+    vis_dir=None,
+    window_config=None,
+    time_offset=None,
+    trial_filters=None,
+    ns_states=None,
+    random_states=None,
+    n_folds=None,
+    ns_discrete_states=None,
+    ns_iters=None,
+    plot_pooled=True):
+    """
+    LDS analysis: compare same-vs-cross R^2 for transient vs steady phases,
+    partitioned by a fixed peak_time boundary (not discrete states).
+
+    Transient = time bins before peak_time (relative to trial start).
+    Steady    = time bins at or after peak_time.
+
+    Uses the LDS model (K=1, discrete_state_idx=0).
+
+    Parameters
+    ----------
+    visual_delay_time : float
+        Time (s) of the first bin relative to movement onset.
+    peak_time : float
+        Time (s) that separates transient from steady phase.
+    """
+
+    # Resolve overridable config parameters
+    if session_data_names is None:
+        session_data_names = config.session_data_names
+    if results_dir is None:
+        results_dir = config.results_dir
+    if vis_dir is None:
+        vis_dir = config.vis_dir
+    if window_config is None:
+        window_config = config.window_config
+    if time_offset is None:
+        time_offset = config.time_offset
+    if trial_filters is None:
+        trial_filters = config.trial_filters
+    if ns_states is None:
+        ns_states = config.ns_states
+    if random_states is None:
+        random_states = config.random_states
+    if n_folds is None:
+        n_folds = config.n_folds
+    if ns_discrete_states is None:
+        ns_discrete_states = config.ns_discrete_states
+    if ns_iters is None:
+        ns_iters = config.ns_iters
+
+    dt = config.time_step
+    # Index of the first bin at or after peak_time
+    peak_bin = int(np.ceil((peak_time - visual_delay_time) / dt))
+
+    print(f'Plotting LDS phase inference (peak_time={peak_time}s, '
+          f'peak_bin={peak_bin}, dt={dt})...')
+
+    discrete_state_idx = 0  # LDS (K=1)
+    inference_name = 'r2_' + inference_type
+
+    # ── Build file names for inference .npz ──
+    same_speed_inference_name = '_'.join(map(str, [x for x in [
+        'inference',
+        unit_filter,
+        input_unit_filter,
+        window_config,
+        time_offset,
+        data_format,
+        trial_filters,
+        'same_speed',
+        random_states,
+        n_folds,
+        ns_states,
+        ns_discrete_states,
+        ns_iters,
+        'rSLDS',
+        dynamics_class,
+        emission_class,
+        init_type,
+        subspace_type,
+        alpha] if x is not None]))
+
+    cross_speed_inference_name = '_'.join(map(str, [x for x in [
+        'inference',
+        unit_filter,
+        None,
+        window_config,
+        None,
+        data_format,
+        trial_filters,
+        'cross_speed',
+        random_states,
+        n_folds,
+        ns_states,
+        ns_discrete_states,
+        ns_iters,
+        'rSLDS',
+        dynamics_class,
+        emission_class,
+        init_type,
+        subspace_type,
+        alpha] if x is not None]))
+
+    # ── Per-phase R^2 collection across sessions ──
+    phase_r2 = {
+        tf: {
+            'same_minus_cross': {ns: {phase: [] for phase in range(2)}
+                                 for ns in ns_states}
+        }
+        for tf in trial_filters
+    }
+
+    for session_data_name in session_data_names:
+
+        session_results_dir = os.path.join(results_dir, session_data_name)
+
+        same_inf = np.load(os.path.join(
+            session_results_dir, same_speed_inference_name + '.npz'))
+        cross_inf = np.load(os.path.join(
+            session_results_dir, cross_speed_inference_name + '.npz'))
+
+        # npz keys always use fast/slow even for RadialGrid (near/far)
+        _tf_data_key_map = {'near': 'fast', 'far': 'slow'}
+
+        for i_tf, trial_filter in enumerate(trial_filters):
+            tf_key = _tf_data_key_map.get(trial_filter, trial_filter)
+
+            same_r2_per_time = same_inf[inference_name + f'_{tf_key}_test_per_time']
+            cross_r2_per_time = cross_inf[inference_name + f'_{tf_key}_test_per_time']
+
+            trial_lengths_full = same_inf[f'trial_lengths_{tf_key}']
+            trial_lengths = trial_lengths_full - 1  # forecast R^2 is T-1
+
+            # Select LDS (K=1) and last iteration, average over random states
+            # -> shape (n_ns_states, n_trials, T)
+            same_r2 = np.mean(same_r2_per_time[:, :, discrete_state_idx, -1], axis=0)
+            cross_r2 = np.mean(cross_r2_per_time[:, :, discrete_state_idx, -1], axis=0)
+
+            n_trials = same_r2.shape[1]
+
+            for i_ns, n_continuous_states in enumerate(ns_states):
+                for i_trial in range(n_trials):
+                    tl = int(trial_lengths[i_trial])
+                    tl_r2 = min(tl, same_r2.shape[-1])
+
+                    same_trial_r2 = same_r2[i_ns, i_trial, :tl_r2]
+                    cross_trial_r2 = cross_r2[i_ns, i_trial, :tl_r2]
+                    diff_trial_r2 = same_trial_r2 - cross_trial_r2
+
+                    # Partition by peak_bin
+                    bin_cut = min(peak_bin, tl_r2)
+                    if bin_cut > 0:
+                        phase_r2[trial_filter]['same_minus_cross'][n_continuous_states][0].extend(
+                            diff_trial_r2[:bin_cut].tolist())
+                    if bin_cut < tl_r2:
+                        phase_r2[trial_filter]['same_minus_cross'][n_continuous_states][1].extend(
+                            diff_trial_r2[bin_cut:].tolist())
+
+    # ── Helper: style a matplotlib boxplot like crossnobis_robustness_check ──
+    def _style_bp(bp, color):
+        bp['boxes'][0].set(facecolor=color, linewidth=0, alpha=0.8)
+        for line in bp['whiskers'] + bp['caps']:
+            line.set(color='black', linewidth=0.25)
+        for line in bp['medians']:
+            line.set(color='black', linewidth=0.5)
+
+    def _sig_stars(p):
+        if p < 0.001:
+            return '***'
+        elif p < 0.01:
+            return '**'
+        elif p < 0.05:
+            return '*'
+        return 'n.s.'
+
+    # ── Plotting (Fig 3: per latent dim) ──
+    task_name = session_data_names[0].split('_')[-1]
+    from vis_config import discrete_state_colors as dsc
+
+    n_ns = len(ns_states)
+    fig, axs = plt.subplots(
+        1, len(trial_filters),
+        figsize=(180 * mm, 40 * mm),
+        sharey=True)
+    if len(trial_filters) == 1:
+        axs = [axs]
+
+    print(f'\n{"="*70}')
+    print(f'LDS phase analysis (peak_time={peak_time}s): transient vs steady')
+    print(f'{"="*70}')
+
+    box_width = 0.35
+
+    for i_tf, trial_filter in enumerate(trial_filters):
+        ax = axs[i_tf]
+        cond_label = trial_filter_name_conversion.get(trial_filter, trial_filter)
+
+        tf_colors = dsc[task_name][trial_filter]
+        color_trans = tf_colors[0]
+        color_steady = tf_colors[1]
+
+        x_positions = np.arange(n_ns)
+
+        print(f'\n{cond_label}:')
+        print(f'{"n_states":>10} {"U":>10} {"p":>12} {"r_rb":>8} '
+              f'{"n_trans":>8} {"n_steady":>8} {"med_trans":>10} {"med_steady":>10}')
+        print('-' * 90)
+
+        for i_ns, ns in enumerate(ns_states):
+            trans_vals = phase_r2[trial_filter]['same_minus_cross'][ns][0]
+            steady_vals = phase_r2[trial_filter]['same_minus_cross'][ns][1]
+
+            if len(trans_vals) > 0:
+                bp_t = ax.boxplot(
+                    trans_vals,
+                    positions=[x_positions[i_ns] - box_width / 2],
+                    widths=box_width * 0.8,
+                    whis=[0, 100], showfliers=False,
+                    patch_artist=True, manage_ticks=False)
+                _style_bp(bp_t, color_trans)
+
+            if len(steady_vals) > 0:
+                bp_s = ax.boxplot(
+                    steady_vals,
+                    positions=[x_positions[i_ns] + box_width / 2],
+                    widths=box_width * 0.8,
+                    whis=[0, 100], showfliers=False,
+                    patch_artist=True, manage_ticks=False)
+                _style_bp(bp_s, color_steady)
+
+            trans_arr = np.array(trans_vals)
+            steady_arr = np.array(steady_vals)
+            if len(trans_arr) < 2 or len(steady_arr) < 2:
+                print(f'{ns:>10}   insufficient data')
+                continue
+
+            stat, p_val = mannwhitneyu(trans_arr, steady_arr, alternative='two-sided')
+            n1, n2 = len(trans_arr), len(steady_arr)
+            r_rb = 1 - 2 * stat / (n1 * n2)
+
+            print(f'{ns:>10} {stat:>10.0f} {p_val:>12.3g} {r_rb:>8.3f} '
+                  f'{n1:>8} {n2:>8} {np.median(trans_arr):>10.4f} {np.median(steady_arr):>10.4f}')
+
+        ax.axhline(0, color='black', lw=0.5, ls='--', alpha=0.5)
+        # ax.set_title(cond_label)
+        # ax.set_xlabel('Number of latent states')
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels(ns_states)
+        ax.spines[['right', 'top']].set_visible(False)
+
+    # axs[0].set_ylabel(r'$\Delta$R$^2$ (same $-$ cross)')
+    fig.tight_layout()
+
+    # ── Save fig 3 ──
+    if len(session_data_names) > 1:
+        session_data_names_str = str(len(session_data_names)) + '_sessions'
+    else:
+        session_data_names_str = str(session_data_names)
+
+    img_name = '_'.join(map(str, [x for x in [
+        session_data_names_str,
+        'phase_inference_LDS',
+        inference_type,
+        truncate_percentile,
+        unit_filter,
+        input_unit_filter,
+        window_config,
+        time_offset,
+        data_format,
+        trial_filters,
+        dynamics_class,
+        emission_class,
+        init_type,
+        alpha,
+        f'peak{peak_time}'] if x is not None]))
+
+    save_path = os.path.join(vis_dir, img_name + '_phase_delta_r2.pdf')
+    fig.savefig(save_path, dpi=600, transparent=True, bbox_inches='tight', format='pdf')
+    plt.close(fig)
+
+    if not plot_pooled:
+        return phase_r2
+
+    ## ══════════════════════════════════════════════════════════════════
+    ## Fig 4 — Pooled across latent dims: 4 boxes total
+    ## ══════════════════════════════════════════════════════════════════
+
+    pooled = {}
+    for trial_filter in trial_filters:
+        pooled[trial_filter] = {phase: [] for phase in range(2)}
+        for ns in ns_states:
+            for phase in range(2):
+                pooled[trial_filter][phase].extend(
+                    phase_r2[trial_filter]['same_minus_cross'][ns][phase])
+
+    fig4, ax4 = plt.subplots(figsize=(90 * mm, 40 * mm))
+
+    box_width_pooled = 0.3
+
+    for i_tf, trial_filter in enumerate(trial_filters):
+        tf_colors = dsc[task_name][trial_filter]
+        trans_vals = pooled[trial_filter][0]
+        steady_vals = pooled[trial_filter][1]
+
+        if len(trans_vals) > 0:
+            bp_t = ax4.boxplot(
+                trans_vals,
+                positions=[i_tf - box_width_pooled / 2],
+                widths=box_width_pooled * 0.8,
+                whis=[0, 100], showfliers=False,
+                patch_artist=True, manage_ticks=False)
+            _style_bp(bp_t, tf_colors[0])
+
+        if len(steady_vals) > 0:
+            bp_s = ax4.boxplot(
+                steady_vals,
+                positions=[i_tf + box_width_pooled / 2],
+                widths=box_width_pooled * 0.8,
+                whis=[0, 100], showfliers=False,
+                patch_artist=True, manage_ticks=False)
+            _style_bp(bp_s, tf_colors[1])
+
+    ax4.axhline(0, color='black', lw=0.5, ls='--', alpha=0.5)
+    ax4.set_xticks(range(len(trial_filters)))
+    ax4.set_xticklabels([trial_filter_name_conversion.get(tf, tf)
+                         for tf in trial_filters])
+    ax4.set_xlabel('')
+    ax4.set_ylabel(r'$\Delta$R$^2$ (same $-$ cross)')
+    ax4.spines[['right', 'top']].set_visible(False)
+
+    # ── Significance annotations ──
+    print(f'\n{"="*70}')
+    print(f'Pooled LDS phase analysis (peak_time={peak_time}s): transient vs steady')
+    print(f'{"="*70}')
+
+    y_max = ax4.get_ylim()[1]
+    tip_h = (ax4.get_ylim()[1] - ax4.get_ylim()[0]) * 0.015
+
+    for i_tf, trial_filter in enumerate(trial_filters):
+        cond_label = trial_filter_name_conversion.get(trial_filter, trial_filter)
+        trans_arr = np.array(pooled[trial_filter][0])
+        steady_arr = np.array(pooled[trial_filter][1])
+
+        stat, p_val = mannwhitneyu(trans_arr, steady_arr, alternative='two-sided')
+        n1, n2 = len(trans_arr), len(steady_arr)
+        r_rb = 1 - 2 * stat / (n1 * n2)
+
+        print(f'{cond_label}: U={stat:.0f}, p={p_val:.3g}, r={r_rb:.3f}, '
+              f'n_trans={n1}, n_steady={n2}, '
+              f'med_trans={np.median(trans_arr):.4f}, med_steady={np.median(steady_arr):.4f}')
+
+        x_left  = i_tf - box_width_pooled / 2
+        x_right = i_tf + box_width_pooled / 2
+        bar_top = max(np.max(trans_arr), np.max(steady_arr))
+        bracket_h = bar_top + (y_max - ax4.get_ylim()[0]) * 0.05
+
+        ax4.plot([x_left, x_left, x_right, x_right],
+                 [bracket_h - tip_h, bracket_h, bracket_h, bracket_h - tip_h],
+                 color='black', linewidth=0.5, clip_on=False)
+
+        stars = _sig_stars(p_val)
+        if stars == 'n.s.':
+            label_text = 'n.s.'
+        else:
+            label_text = f'r={r_rb:.2f}\n{stars}'
+        ax4.text((x_left + x_right) / 2, bracket_h + tip_h * 0.5,
+                 label_text, ha='center', va='bottom', fontsize=6)
+
+    fig4.tight_layout()
+
+    save_path4 = os.path.join(vis_dir, img_name + '_phase_delta_r2_pooled.pdf')
+    fig4.savefig(save_path4, dpi=600, transparent=True, bbox_inches='tight', format='pdf')
+    plt.close(fig4)
+
+    return phase_r2
 
 
 def plot_dsupr_results_avg_session(
@@ -1752,7 +2427,8 @@ def plot_dsupr_results_avg_session(
     subspace_type,
     alpha,
     train_or_test='test',
-    form='lines'):
+    form='lines',
+    show_tick_labels=True):
 
     print('Plotting DSUP Ratio results...')
 
@@ -1813,14 +2489,12 @@ def plot_dsupr_results_avg_session(
     rSLDS_dsupr_fast_all_se = np.std(rSLDS_dsupr_fast_all, axis=(0, 2, 3)) / correction_factor
 
     dsupr_results = {
-        # 'slow':
-        'far':
+        trial_filters[1]:
             {
                 'mean': rSLDS_dsupr_slow_all_mean,
                 'se': rSLDS_dsupr_slow_all_se,
             },
-        # 'fast':
-        'near':
+        trial_filters[0]:
             {
                 'mean': rSLDS_dsupr_fast_all_mean,
                 'se': rSLDS_dsupr_fast_all_se,
@@ -1927,19 +2601,20 @@ def plot_dsupr_results_avg_session(
                     alpha=alpha_line, 
                     linewidth=0)
             
-            axs[i_tf].set_xticks(ns_states)
+            xticks_range = [s for s in ns_states if 2 <= s <= 20]
+            axs[i_tf].set_xticks(xticks_range)
+            axs[i_tf].set_yticks([0.25, 0.50, 0.75])
 
-            ## Create tick labels: label only at even indices, else empty string
-            # tick_labels = [str(x) if i % 2 == 0 else '' for i, x in enumerate(ns_states)]
-
-            ## Set tick labels
-            # axs[i_tf].set_xticklabels(tick_labels)
-            axs[i_tf].set_xticklabels([])
-            # axs[i_tf].set_yticklabels([])
+            if show_tick_labels:
+                tick_labels = [str(x) if i % 2 == 0 else '' for i, x in enumerate(xticks_range)]
+                axs[i_tf].set_xticklabels(tick_labels)
+            else:
+                axs[i_tf].set_xticklabels([])
+                axs[i_tf].set_yticklabels([])
 
             # axs[i_tf].set_xlabel('Number of continuous states', fontsize=5)
             # axs[i_tf].set_ylabel('DSUP Ratio', fontsize=5)
-            axs[i_tf].set_ylim(vmin, vmax)
+            axs[i_tf].set_ylim(0, 0.75)
 
             ## Remove top and right spines
             axs[i_tf].spines['top'].set_visible(False)
@@ -2011,7 +2686,8 @@ def plot_per_time_dsupr_results_avg_session(
     subspace_type,
     alpha,
     truncate_percentile=10,
-    visual_delay_time=0):
+    visual_delay_time=0,
+    show_tick_labels=True):
 
     print('Plotting dsupr results...')
 
@@ -2150,16 +2826,14 @@ def plot_per_time_dsupr_results_avg_session(
         n_trials_fast_cumulative += n_trials_fast
 
     dsupr_results = {
-        # 'fast':
-        'near':
+        trial_filters[0]:
             {
                 'LDS_mean_same_speed': rSLDS_same_speed_dsupr_fast_all_,
                 'LDS_mean_cross_speed': rSLDS_cross_speed_dsupr_fast_all_,
                 # 'LDS_mean_same_speed': rSLDS_same_speed_dsupr_fast_all[0],
                 # 'LDS_mean_cross_speed': rSLDS_cross_speed_dsupr_fast_all[0],
             },
-        # 'slow':
-        'far':
+        trial_filters[1]:
             {
                 'LDS_mean_same_speed': rSLDS_same_speed_dsupr_slow_all_,
                 'LDS_mean_cross_speed': rSLDS_cross_speed_dsupr_slow_all_,
@@ -2224,8 +2898,16 @@ def plot_per_time_dsupr_results_avg_session(
             xtick_step = 1
 
         axs[i_tf].set_xticks(xs[::xtick_step])
-        axs[i_tf].set_xticklabels(np.round(xs[::xtick_step] * config.time_step + visual_delay_time, 2))
-        axs[i_tf].set_yticks(ns_states)
+        yticks_range = [s for s in ns_states if 2 <= s <= 20]
+        axs[i_tf].set_yticks(yticks_range)
+        axs[i_tf].set_zticks([0.25, 0.50, 0.75])
+
+        if show_tick_labels:
+            axs[i_tf].set_xticklabels(np.round(xs[::xtick_step] * config.time_step + visual_delay_time, 2))
+        else:
+            axs[i_tf].set_xticklabels([])
+            axs[i_tf].set_yticklabels([])
+            axs[i_tf].set_zticklabels([])
 
 
         # Set labels and title
@@ -2236,7 +2918,7 @@ def plot_per_time_dsupr_results_avg_session(
         # axs[i_tf].set_xlim(ns_states[0], ns_states[-1])
         # axs[i_tf].set_ylim(ns_discrete_states[0], ns_discrete_states[-1])
         axs[i_tf].set_zlim(vmin, vmax)
-        
+
         # axs[i_tf].set_yticklabels(['PCA'] + ns_discrete_states)
 
         # Adjust viewing angle
@@ -2677,14 +3359,12 @@ def plot_entropy_results_avg_session(
     rSLDS_entropy_fast_all_se = np.std(rSLDS_entropy_fast_all, axis=(0, 2, 3)) / correction_factor
 
     entropy_results = {
-        # 'slow':
-        'far':
+        trial_filters[1]:
             {
                 'mean': rSLDS_entropy_slow_all_mean,
                 'se': rSLDS_entropy_slow_all_se,
             },
-        # 'fast':
-        'near':
+        trial_filters[0]:
             {
                 'mean': rSLDS_entropy_fast_all_mean,
                 'se': rSLDS_entropy_fast_all_se,
@@ -2937,11 +3617,11 @@ def plot_skew_ratio_results_avg_session(
     rSLDS_skew_fast_all_se = np.nanstd(rSLDS_skew_fast_all, axis=(0, 2, 3)) / correction_factor
 
     skew_results = {
-        'far': {
+        trial_filters[1]: {
             'mean': rSLDS_skew_slow_all_mean,
             'se': rSLDS_skew_slow_all_se,
         },
-        'near': {
+        trial_filters[0]: {
             'mean': rSLDS_skew_fast_all_mean,
             'se': rSLDS_skew_fast_all_se,
         }
@@ -3082,7 +3762,54 @@ if __name__ == '__main__':
             subspace_types,
             alphas):
         
-        plot_per_time_inference_results_avg_session(
+        # LDS (K=1)
+        # plot_per_time_inference_results_avg_session(
+        #     unit_filter,
+        #     input_unit_filter,
+        #     data_format,
+        #     dynamics_class,
+        #     emission_class,
+        #     init_type,
+        #     subspace_type,
+        #     alpha,
+        #     inference_type='forecast',
+        #     truncate_percentile=10,
+        #     visual_delay_time=0.132,
+        #     peak_time=0.186,
+        #     discrete_state_idx=0)
+
+        # rSLDS (K=2)
+        # plot_per_time_inference_results_avg_session(
+        #     unit_filter,
+        #     input_unit_filter,
+        #     data_format,
+        #     dynamics_class,
+        #     emission_class,
+        #     init_type,
+        #     subspace_type,
+        #     alpha,
+        #     inference_type='forecast',
+        #     truncate_percentile=10,
+        #     visual_delay_time=0.132,
+        #     discrete_state_idx=1)
+
+        # rSLDS phase analysis (K=2): transient vs steady
+        # plot_rslds_phase_inference_results_avg_session(
+        #     unit_filter,
+        #     input_unit_filter,
+        #     data_format,
+        #     dynamics_class,
+        #     emission_class,
+        #     init_type,
+        #     subspace_type,
+        #     alpha,
+        #     n_discrete=2,
+        #     inference_type='forecast',
+        #     truncate_percentile=10,
+        #     visual_delay_time=0.132)
+
+        # LDS phase analysis: transient vs steady by peak_time
+        plot_lds_phase_inference_results_avg_session(
             unit_filter,
             input_unit_filter,
             data_format,
@@ -3093,8 +3820,9 @@ if __name__ == '__main__':
             alpha,
             inference_type='forecast',
             truncate_percentile=10,
-            visual_delay_time=0.275)
-        
+            visual_delay_time=0.132,
+            peak_time=0.186)
+
         # plot_per_time_dsupr_results_avg_session(
         #     unit_filter,
         #     input_unit_filter,
@@ -3141,54 +3869,57 @@ if __name__ == '__main__':
     #         subspace_type,
     #         alpha,
     #         train_or_test='test',
-    #         form='scatter')
+    #         form='scatter',
+    #         show_tick_labels=False)
 
-    for (
-        unit_filter,
-        input_unit_filter,
-        data_format,
-        train_test_option,
-        dynamics_class,
-        emission_class,
-        init_type,
-        subspace_type,
-        alpha) in itertools.product(
-            unit_filters,
-            input_unit_filters,
-            data_formats,
-            train_test_options,
-            dynamics_classes,
-            emission_classes,
-            init_types,
-            subspace_types,
-            alphas):
+    # for (
+    #     unit_filter,
+    #     input_unit_filter,
+    #     data_format,
+    #     train_test_option,
+    #     dynamics_class,
+    #     emission_class,
+    #     init_type,
+    #     subspace_type,
+    #     alpha) in itertools.product(
+    #         unit_filters,
+    #         input_unit_filters,
+    #         data_formats,
+    #         train_test_options,
+    #         dynamics_classes,
+    #         emission_classes,
+    #         init_types,
+    #         subspace_types,
+    #         alphas):
 
-        plot_inference_results_avg_session(
-            unit_filter,
-            input_unit_filter,
-            data_format,
-            train_test_option,
-            dynamics_class,
-            emission_class,
-            init_type,
-            subspace_type,
-            alpha,
-            train_or_test='test',
-            inference_type='forecast',
-            form='heatmap')
+    #     plot_inference_results_avg_session(
+    #         unit_filter,
+    #         input_unit_filter,
+    #         data_format,
+    #         train_test_option,
+    #         dynamics_class,
+    #         emission_class,
+    #         init_type,
+    #         subspace_type,
+    #         alpha,
+    #         train_or_test='test',
+    #         inference_type='forecast',
+    #         form='heatmap')
         
-        # plot_dsupr_results_avg_session(
-        #     unit_filter,
-        #     input_unit_filter,
-        #     data_format,
-        #     train_test_option,
-        #     dynamics_class,
-        #     emission_class,
-        #     init_type,
-        #     subspace_type,
-        #     alpha,
-        #     train_or_test='test',
-        #     form='lines')
+    #     plot_dsupr_results_avg_session(
+    #         unit_filter,
+    #         input_unit_filter,
+    #         data_format,
+    #         train_test_option,
+    #         dynamics_class,
+    #         emission_class,
+    #         init_type,
+    #         subspace_type,
+    #         alpha,
+    #         train_or_test='test',
+    #         form='lines',
+    #         show_tick_labels=False,
+    #         )
         
     # #     # plot_elbos_avg_session(
     # #     #     unit_filter,
@@ -3204,18 +3935,18 @@ if __name__ == '__main__':
     # #     #     train_or_test='test',
     # #     #     form='waterfall')
 
-    #     plot_entropy_results_avg_session(
-    #         unit_filter,
-    #         input_unit_filter,
-    #         data_format,
-    #         train_test_option,
-    #         dynamics_class,
-    #         emission_class,
-    #         init_type,
-    #         subspace_type,
-    #         alpha,
-    #         train_or_test='test',
-    #         form='heatmap')
+        # plot_entropy_results_avg_session(
+        #     unit_filter,
+        #     input_unit_filter,
+        #     data_format,
+        #     train_test_option,
+        #     dynamics_class,
+        #     emission_class,
+        #     init_type,
+        #     subspace_type,
+        #     alpha,
+        #     train_or_test='test',
+        #     form='heatmap')
 
     #     plot_skew_ratio_results_avg_session(
     #         unit_filter,
